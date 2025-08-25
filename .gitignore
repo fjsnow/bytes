@@ -1,34 +1,35 @@
-# dependencies (bun install)
-node_modules
+# Node / Bun dependencies
+node_modules/
+bun.lockb
 
-# output
-out
-dist
-*.tgz
-
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
-.cache
+# TypeScript build output (if you ever compile)
+dist/
+build/
 *.tsbuildinfo
 
-# IntelliJ based IDEs
-.idea
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+*.log
 
-# Finder (MacOS) folder config
+# OS / Editor junk
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Game save data
+save.json
+save.json.lock
+saves.db
+saves.db-shm
+saves.db-wal
+
+# Environment / config
+.env
+.env.local
+.env.*.local

@@ -123,20 +123,21 @@ export function drawUpgrades(
 
     if (appState.layout === "large") {
         terminal.draw(
-            width - 13,
+            width - 11,
             2,
-            "Upgrades",
+            "[U]pgrades",
             focused ? chalk.blue.bold : chalk.gray.bold,
         );
-        terminal.draw(width - 5, 2, " (U)", chalk.gray);
+
+        if (focused) terminal.draw(width - 23, 2, "j(↓) / k(↑)", chalk.gray);
     } else {
         terminal.draw(
             1,
             2,
-            "Upgrades",
+            "[U]pgrades",
             focused ? chalk.blue.bold : chalk.gray.bold,
         );
-        terminal.draw(9, 2, " (U)", chalk.gray);
+        if (focused) terminal.draw(12, 2, "j(↓) / k(↑)", chalk.gray);
     }
 
     const filtered = getFilteredUpgrades(appState, gameState);

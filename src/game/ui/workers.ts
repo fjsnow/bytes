@@ -60,10 +60,10 @@ export function drawWorkers(
     terminal.draw(
         1,
         2,
-        "Workers",
+        "[W]orkers",
         focused ? chalk.yellow.bold : chalk.gray.bold,
     );
-    terminal.draw(8, 2, " (W)", chalk.gray);
+    if (focused) terminal.draw(11, 2, "j(↓) / k(↑)", chalk.gray);
 
     const start = appState.ui.workers.scrollOffset;
     const end = Math.min(start + maxWorkers, WORKER_DATA.length);

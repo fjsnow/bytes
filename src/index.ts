@@ -11,7 +11,6 @@ import {
 } from "./core/renderer";
 import { GameSession } from "./game/session";
 import { createInitialAppState } from "./game/state";
-import { startSshServer } from "./server";
 import { logger } from "./utils/logger";
 
 const isServerMode = process.argv.includes("--server");
@@ -58,6 +57,8 @@ async function main() {
             );
             process.exit(1);
         }
+
+        const { startSshServer } = await import("./server");
         await startSshServer(port);
     } else {
         logger.info("Starting in single-player CLI mode.");

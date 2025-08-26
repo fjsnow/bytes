@@ -1,6 +1,6 @@
 # bytes
 
-A command-line incremental game, playable over SSH (or locally).
+A command-line incremental game, playable over SSH (or locally). Progress is persisted using your public key over multiple connections.
 
 ## Playing Remotely
 

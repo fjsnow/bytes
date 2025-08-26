@@ -25,6 +25,8 @@ import {
 } from "./utils/logger";
 
 const HOST = "0.0.0.0";
+const KEEP_ALIVE_INTERVAL = 60_000;
+const KEEP_ALIVE_COUNT_MAX = 3;
 
 let hostKey: string;
 try {
@@ -56,6 +58,8 @@ export async function startSshServer(port: number) {
     const server = new Server(
         {
             hostKeys: [hostKey],
+            keepaliveInterval: KEEP_ALIVE_INTERVAL,
+            keepaliveCountMax: KEEP_ALIVE_COUNT_MAX,
         },
         (client) => {
             logger.info("Client connected!");

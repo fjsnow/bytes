@@ -1,13 +1,10 @@
-import { onKey } from "../core/input";
 import { clickCookie, buyWorker, buyUpgrade } from "./systems";
-import { appState, gameState } from "./state";
-import { getSize } from "../core/screen";
+import type { AppState, GameState, Focus } from "./state";
+import type { ITerminal } from "../core/terminal";
 import { WORKER_DATA } from "./data/workers";
 import { UPGRADE_DATA } from "./data/upgrades";
 
-export type Focus = "main" | "workers" | "upgrades" | "settings";
-
-function getFilteredUpgrades() {
+export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
         const owned = gameState.upgrades[u.id] || 0;
@@ -15,12 +12,12 @@ function getFilteredUpgrades() {
     });
 }
 
-function ensureUpgradeVisible() {
-    const { height } = getSize();
+export function ensureUpgradeVisible(appState: AppState, terminal: ITerminal) {
+    const { height } = terminal.getSize();
     const maxPerUpgrade = 5;
     const maxVisible = Math.floor((height - 3) / maxPerUpgrade);
 
-    const filtered = getFilteredUpgrades();
+    const filtered = getFilteredUpgrades(appState, {} as GameState);
     const sel = appState.ui.upgrades.selectedIndex;
     let scroll = appState.ui.upgrades.scrollOffset;
 
@@ -38,8 +35,12 @@ function ensureUpgradeVisible() {
     appState.ui.upgrades.scrollOffset = Math.max(0, scroll);
 }
 
-function moveWorkerSelection(delta: number) {
-    const { height } = getSize();
+export function moveWorkerSelection(
+    appState: AppState,
+    terminal: ITerminal,
+    delta: number,
+) {
+    const { height } = terminal.getSize();
     const maxVisible = Math.floor((height - 3) / 4);
     appState.ui.workers.selectedIndex += delta;
     if (appState.ui.workers.selectedIndex < 0)
@@ -58,18 +59,23 @@ function moveWorkerSelection(delta: number) {
     }
 }
 
-function moveUpgradeSelection(delta: number) {
-    const filtered = getFilteredUpgrades();
+export function moveUpgradeSelection(
+    appState: AppState,
+    terminal: ITerminal,
+    delta: number,
+    gameState: GameState,
+) {
+    const filtered = getFilteredUpgrades(appState, gameState);
     appState.ui.upgrades.selectedIndex += delta;
     if (appState.ui.upgrades.selectedIndex < 0)
         appState.ui.upgrades.selectedIndex = 0;
     if (appState.ui.upgrades.selectedIndex >= filtered.length)
         appState.ui.upgrades.selectedIndex = filtered.length - 1;
 
-    ensureUpgradeVisible();
+    ensureUpgradeVisible(appState, terminal);
 }
 
-function cycleFocus() {
+export function cycleFocus(appState: AppState) {
     if (appState.layout === "large") {
         const order: Focus[] = ["main", "workers", "upgrades"];
         const idx = order.indexOf(appState.ui.focus);
@@ -81,54 +87,59 @@ function cycleFocus() {
     }
 }
 
-export function setupGameInput() {
-    onKey((key) => {
-        if (key === "q") process.exit(0);
+export function handleGameInput(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+    key: string,
+) {
+    if (key === "\t") {
+        cycleFocus(appState);
+        return;
+    }
 
-        if (key === "\t") {
-            cycleFocus();
-            return;
-        }
+    if (appState.layout === "large") {
+        handleLargeInput(appState, gameState, terminal, key);
+    } else if (appState.layout === "medium") {
+        handleMediumInput(appState, gameState, terminal, key);
+    } else {
+        handleSmallInput(appState, gameState, terminal, key);
+    }
 
-        if (appState.layout === "large") {
-            handleLargeInput(key);
-        } else if (appState.layout === "medium") {
-            handleMediumInput(key);
-        } else {
-            handleSmallInput(key);
-        }
+    if (key.toLowerCase() === "h") {
+        const prevFiltered = getFilteredUpgrades(appState, gameState);
+        const prevUpgrade = prevFiltered[appState.ui.upgrades.selectedIndex];
 
-        if (key.toLowerCase() === "h") {
-            const prevFiltered = getFilteredUpgrades();
-            const prevUpgrade =
-                prevFiltered[appState.ui.upgrades.selectedIndex];
+        appState.ui.upgradesShowMaxed = !appState.ui.upgradesShowMaxed;
 
-            appState.ui.upgradesShowMaxed = !appState.ui.upgradesShowMaxed;
+        const newFiltered = getFilteredUpgrades(appState, gameState);
 
-            const newFiltered = getFilteredUpgrades();
-
-            if (prevUpgrade) {
-                const newIndex = newFiltered.findIndex(
-                    (u) => u.id === prevUpgrade.id,
+        if (prevUpgrade) {
+            const newIndex = newFiltered.findIndex(
+                (u) => u.id === prevUpgrade.id,
+            );
+            if (newIndex !== -1) {
+                appState.ui.upgrades.selectedIndex = newIndex;
+            } else {
+                appState.ui.upgrades.selectedIndex = Math.max(
+                    0,
+                    appState.ui.upgrades.selectedIndex - 1,
                 );
-                if (newIndex !== -1) {
-                    appState.ui.upgrades.selectedIndex = newIndex;
-                } else {
-                    appState.ui.upgrades.selectedIndex = Math.max(
-                        0,
-                        appState.ui.upgrades.selectedIndex - 1,
-                    );
-                }
             }
-
-            ensureUpgradeVisible();
         }
-    });
+
+        ensureUpgradeVisible(appState, terminal);
+    }
 }
 
-function handleLargeInput(key: string) {
+function handleLargeInput(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+    key: string,
+) {
     const map: Record<string, () => void> = {
-        " ": clickCookie,
+        " ": () => clickCookie(appState, gameState, terminal),
         w: () => {
             appState.ui.focus = "workers";
         },
@@ -136,30 +147,39 @@ function handleLargeInput(key: string) {
             appState.ui.focus = "upgrades";
         },
         j: () => {
-            if (appState.ui.focus === "workers") moveWorkerSelection(1);
-            if (appState.ui.focus === "upgrades") moveUpgradeSelection(1);
+            if (appState.ui.focus === "workers")
+                moveWorkerSelection(appState, terminal, 1);
+            if (appState.ui.focus === "upgrades")
+                moveUpgradeSelection(appState, terminal, 1, gameState);
         },
         k: () => {
-            if (appState.ui.focus === "workers") moveWorkerSelection(-1);
-            if (appState.ui.focus === "upgrades") moveUpgradeSelection(-1);
+            if (appState.ui.focus === "workers")
+                moveWorkerSelection(appState, terminal, -1);
+            if (appState.ui.focus === "upgrades")
+                moveUpgradeSelection(appState, terminal, -1, gameState);
         },
         b: () => {
             if (appState.ui.focus === "workers") {
                 const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
-                if (worker) buyWorker(worker.id);
+                if (worker) buyWorker(worker.id, gameState);
             } else if (appState.ui.focus === "upgrades") {
-                const filtered = getFilteredUpgrades();
+                const filtered = getFilteredUpgrades(appState, gameState);
                 const upgrade = filtered[appState.ui.upgrades.selectedIndex];
-                if (upgrade) buyUpgrade(upgrade.id);
+                if (upgrade) buyUpgrade(upgrade.id, gameState);
             }
         },
     };
     if (map[key]) map[key]();
 }
 
-function handleMediumInput(key: string) {
+function handleMediumInput(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+    key: string,
+) {
     const map: Record<string, () => void> = {
-        " ": clickCookie,
+        " ": () => clickCookie(appState, gameState, terminal),
         w: () => {
             appState.screen = "workers";
             appState.ui.focus = "workers";
@@ -169,31 +189,40 @@ function handleMediumInput(key: string) {
             appState.ui.focus = "upgrades";
         },
         j: () => {
-            if (appState.ui.focus === "workers") moveWorkerSelection(1);
-            if (appState.ui.focus === "upgrades") moveUpgradeSelection(1);
+            if (appState.ui.focus === "workers")
+                moveWorkerSelection(appState, terminal, 1);
+            if (appState.ui.focus === "upgrades")
+                moveUpgradeSelection(appState, terminal, 1, gameState);
         },
         k: () => {
-            if (appState.ui.focus === "workers") moveWorkerSelection(-1);
-            if (appState.ui.focus === "upgrades") moveUpgradeSelection(-1);
+            if (appState.ui.focus === "workers")
+                moveWorkerSelection(appState, terminal, -1);
+            if (appState.ui.focus === "upgrades")
+                moveUpgradeSelection(appState, terminal, -1, gameState);
         },
         b: () => {
             if (appState.ui.focus === "workers") {
                 const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
-                if (worker) buyWorker(worker.id);
+                if (worker) buyWorker(worker.id, gameState);
             } else if (appState.ui.focus === "upgrades") {
-                const filtered = getFilteredUpgrades();
+                const filtered = getFilteredUpgrades(appState, gameState);
                 const upgrade = filtered[appState.ui.upgrades.selectedIndex];
-                if (upgrade) buyUpgrade(upgrade.id);
+                if (upgrade) buyUpgrade(upgrade.id, gameState);
             }
         },
     };
     if (map[key]) map[key]();
 }
 
-function handleSmallInput(key: string) {
+function handleSmallInput(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+    key: string,
+) {
     if (appState.screen === "main") {
         const map: Record<string, () => void> = {
-            " ": clickCookie,
+            " ": () => clickCookie(appState, gameState, terminal),
             w: () => {
                 appState.screen = "workers";
                 appState.ui.focus = "workers";
@@ -210,11 +239,11 @@ function handleSmallInput(key: string) {
             appState.ui.focus = "main";
             return;
         }
-        if (key === "j") moveWorkerSelection(1);
-        if (key === "k") moveWorkerSelection(-1);
+        if (key === "j") moveWorkerSelection(appState, terminal, 1);
+        if (key === "k") moveWorkerSelection(appState, terminal, -1);
         if (key === "b") {
             const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
-            if (worker) buyWorker(worker.id);
+            if (worker) buyWorker(worker.id, gameState);
         }
     } else if (appState.screen === "upgrades") {
         if (key === "\b" || key === "\x7f") {
@@ -222,12 +251,13 @@ function handleSmallInput(key: string) {
             appState.ui.focus = "main";
             return;
         }
-        if (key === "j") moveUpgradeSelection(1);
-        if (key === "k") moveUpgradeSelection(-1);
+        if (key === "j") moveUpgradeSelection(appState, terminal, 1, gameState);
+        if (key === "k")
+            moveUpgradeSelection(appState, terminal, -1, gameState);
         if (key === "b") {
-            const filtered = getFilteredUpgrades();
+            const filtered = getFilteredUpgrades(appState, gameState);
             const upgrade = filtered[appState.ui.upgrades.selectedIndex];
-            if (upgrade) buyUpgrade(upgrade.id);
+            if (upgrade) buyUpgrade(upgrade.id, gameState);
         }
     }
 }

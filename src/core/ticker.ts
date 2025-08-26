@@ -1,21 +1,46 @@
-import { tickBits } from "../game/logic/bits";
-import { tickCookie } from "../game/logic/cookie";
+import type { GameSession } from "../game/session";
+import { logger } from "../utils/logger";
 
-let interval: NodeJS.Timeout | null = null;
+let tickInterval: NodeJS.Timeout | null = null;
+const activeSessions = new Set<GameSession>();
+let isServerMode: boolean = false;
+let lastSaveTime: number = 0;
+
+const AUTOSAVE_INTERVAL_MS = 60_000;
 
 export const TPS = 25;
 
-export function startTicker() {
+export function registerSession(session: GameSession) {
+    activeSessions.add(session);
+}
+
+export function unregisterSession(session: GameSession) {
+    activeSessions.delete(session);
+}
+
+export function startTicker(serverMode: boolean = false) {
     stopTicker();
-    interval = setInterval(() => {
-        tickCookie();
-        tickBits();
+    isServerMode = serverMode;
+    lastSaveTime = Date.now();
+
+    tickInterval = setInterval(() => {
+        for (const session of activeSessions) {
+            session.tick();
+        }
+
+        if (isServerMode && Date.now() - lastSaveTime >= AUTOSAVE_INTERVAL_MS) {
+            for (const session of activeSessions) {
+                session.saveGameNow();
+            }
+            logger.info(`Autosaving ${activeSessions.size} sessions.`);
+            lastSaveTime = Date.now();
+        }
     }, 1000 / TPS);
 }
 
 export function stopTicker() {
-    if (interval) {
-        clearInterval(interval);
-        interval = null;
+    if (tickInterval) {
+        clearInterval(tickInterval);
+        tickInterval = null;
     }
 }

@@ -1,7 +1,7 @@
 import chalk from "chalk";
-import { draw, getCenterForSize, getSize } from "../../core/screen";
+import type { ITerminal } from "../../core/terminal";
 import { getCookieGray } from "../../utils/colours";
-import { appState } from "../state";
+import type { AppState } from "../state";
 
 const ASCII = [
     "       ⢰⠒⠒⠒⠒⠒⠒⢲⡖⣶⣶⡆       ",
@@ -17,8 +17,8 @@ const ASCII = [
     "       ⠸⠿⠿⠿⠿⠿⣿⣿⣿⣿⠿⠇       ",
 ];
 
-export function drawCookie() {
-    const { width, height } = getSize();
+export function drawCookie(appState: AppState, terminal: ITerminal) {
+    const { width, height } = terminal.getSize();
     const cookieWidth = ASCII[0].length;
     const cookieHeight = ASCII.length;
 
@@ -32,14 +32,19 @@ export function drawCookie() {
         cx = leftPanelWidth + Math.floor((rightWidth - cookieWidth) / 2);
         cy = Math.floor((height - cookieHeight) / 2);
     } else {
-        const center = getCenterForSize(cookieWidth, cookieHeight);
+        const center = terminal.getCenterForSize(cookieWidth, cookieHeight);
         cx = center.x;
         cy = center.y;
     }
 
     for (let i = 0; i < ASCII.length; i++) {
         const line = ASCII[i];
-        draw(cx, cy + i, line, getCookieGray(appState.ui.highlightTicks));
+        terminal.draw(
+            cx,
+            cy + i,
+            line,
+            getCookieGray(appState.ui.highlightTicks),
+        );
     }
 
     const message = "Press [space] to bake!";
@@ -52,10 +57,10 @@ export function drawCookie() {
         tx = leftPanelWidth + Math.floor((rightWidth - message.length) / 2);
         ty = cy + cookieHeight + 2;
     } else {
-        const center = getCenterForSize(message.length, 0);
+        const center = terminal.getCenterForSize(message.length, 0);
         tx = center.x;
         ty = cy + cookieHeight + 2;
     }
 
-    draw(tx, ty, message, chalk.gray);
+    terminal.draw(tx, ty, message, chalk.gray);
 }

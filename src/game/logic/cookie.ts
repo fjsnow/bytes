@@ -1,7 +1,11 @@
-import { appState, gameState } from "../state";
-import { getSize } from "../../core/screen";
+import type { AppState, GameState } from "../state";
+import type { ITerminal } from "../../core/terminal";
 
-export function tickCookie() {
+export function tickCookie(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
     const cookiesThisTick = gameState.cps / 10;
     gameState.cookies += cookiesThisTick;
 
@@ -20,7 +24,7 @@ export function tickCookie() {
         }
 
         if (spawnCount > 0) {
-            const { width, height } = getSize();
+            const { width, height } = terminal.getSize();
             for (let i = 0; i < spawnCount; i++) {
                 appState.ui.fallingBits.push({
                     x: Math.floor(Math.random() * (width - 2)) + 1,

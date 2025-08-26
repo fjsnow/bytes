@@ -1,10 +1,10 @@
 import chalk from "chalk";
-import { draw, getSize } from "../../core/screen";
+import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
-import { appState, gameState } from "../state";
+import type { AppState, GameState } from "../state";
 import { UPGRADE_DATA, type Upgrade } from "../data/upgrades";
 
-function getFilteredUpgrades() {
+function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
         const owned = gameState.upgrades[u.id] || 0;
@@ -29,18 +29,25 @@ function wrapText(text: string, width: number): string[] {
 }
 
 function drawUpgrade(
+    terminal: ITerminal,
     x: number,
     y: number,
     width: number,
     upgrade: Upgrade,
     highlight: boolean,
+    gameState: GameState,
 ) {
     const count = gameState.upgrades[upgrade.id] || 0;
-    const cost = upgrade.baseCost;
+    const cost = Math.floor(upgrade.baseCost * Math.pow(1.15, count));
     const formattedCost = formatBytes(cost);
     const canAfford = gameState.cookies >= cost;
 
-    draw(x + 2, y, upgrade.name, canAfford ? chalk.blue.bold : chalk.blue);
+    terminal.draw(
+        x + 2,
+        y,
+        upgrade.name,
+        canAfford ? chalk.blue.bold : chalk.blue,
+    );
 
     const ownedText = upgrade.maxOwned
         ? upgrade.maxOwned === 1
@@ -50,25 +57,35 @@ function drawUpgrade(
             : ` (owned: ${count} / ${upgrade.maxOwned})`
         : ` (owned: ${count})`;
 
-    draw(x + 2 + upgrade.name.length, y, ownedText, chalk.gray);
-    draw(x + 2, y + 1, "cost: ", chalk.gray);
-    draw(x + 8, y + 1, formattedCost, chalk.white);
+    terminal.draw(x + 2 + upgrade.name.length, y, ownedText, chalk.gray);
+    terminal.draw(x + 2, y + 1, "cost: ", chalk.gray);
+    terminal.draw(x + 8, y + 1, formattedCost, chalk.white);
 
     const descLines = wrapText(upgrade.description, width - 4);
     for (let i = 0; i < descLines.length; i++) {
-        draw(x + 2, y + 2 + i, descLines[i], chalk.gray.italic);
+        terminal.draw(x + 2, y + 2 + i, descLines[i], chalk.gray.italic);
     }
 
     if (highlight) {
-        draw(x, y, ">", chalk.blue);
+        terminal.draw(x, y, ">", chalk.blue);
         if (canAfford) {
             if (upgrade.maxOwned && count >= upgrade.maxOwned) {
-                draw(x + 2, y + 2 + descLines.length, "maxed out", chalk.red);
+                terminal.draw(
+                    x + 2,
+                    y + 2 + descLines.length,
+                    "maxed out",
+                    chalk.red,
+                );
             } else {
-                draw(x + 2, y + 2 + descLines.length, "[b]uy", chalk.green);
+                terminal.draw(
+                    x + 2,
+                    y + 2 + descLines.length,
+                    "[b]uy",
+                    chalk.green,
+                );
             }
         } else {
-            draw(
+            terminal.draw(
                 x + 2,
                 y + 2 + descLines.length,
                 "you cannot afford this",
@@ -78,8 +95,12 @@ function drawUpgrade(
     }
 }
 
-export function drawUpgrades() {
-    const { width, height } = getSize();
+export function drawUpgrades(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
+    const { width, height } = terminal.getSize();
     const focused = appState.ui.focus === "upgrades";
     const availableHeight = height - 3;
     const maxPerUpgrade = 5;
@@ -93,27 +114,32 @@ export function drawUpgrades() {
         panelX = width - panelWidth - 1;
         scrollbarX = width - 2;
     } else if (appState.layout === "medium") {
-        panelX = 1;
+        panelX = 3;
         scrollbarX = 1;
     } else if (appState.layout === "small") {
-        panelX = 1;
+        panelX = 3;
         scrollbarX = 1;
     }
 
     if (appState.layout === "large") {
-        draw(
+        terminal.draw(
             width - 13,
             2,
             "Upgrades",
             focused ? chalk.blue.bold : chalk.gray.bold,
         );
-        draw(width - 5, 2, " (U)", chalk.gray);
+        terminal.draw(width - 5, 2, " (U)", chalk.gray);
     } else {
-        draw(1, 2, "Upgrades", focused ? chalk.blue.bold : chalk.gray.bold);
-        draw(9, 2, " (U)", chalk.gray);
+        terminal.draw(
+            1,
+            2,
+            "Upgrades",
+            focused ? chalk.blue.bold : chalk.gray.bold,
+        );
+        terminal.draw(9, 2, " (U)", chalk.gray);
     }
 
-    const filtered = getFilteredUpgrades();
+    const filtered = getFilteredUpgrades(appState, gameState);
     const start = appState.ui.upgrades.scrollOffset;
     const end = Math.min(start + maxUpgrades, filtered.length);
 
@@ -121,11 +147,13 @@ export function drawUpgrades() {
         const upgrade = filtered[i];
         const y = 3 + (i - start) * maxPerUpgrade;
         drawUpgrade(
+            terminal,
             panelX,
             y,
             panelWidth,
             upgrade,
             focused && i === appState.ui.upgrades.selectedIndex,
+            gameState,
         );
     }
 
@@ -144,7 +172,7 @@ export function drawUpgrades() {
 
         for (let y = 3; y < 3 + barHeight; y++) {
             if (y >= scrollbarY && y < scrollbarY + scrollbarHeight) {
-                draw(scrollbarX, y, "┃", chalk.gray);
+                terminal.draw(scrollbarX, y, "┃", chalk.gray);
             }
         }
     }
@@ -153,5 +181,5 @@ export function drawUpgrades() {
         ? "[H]ide maxed upgrades"
         : "Un[h]ide maxed upgrades";
     const hintX = appState.layout === "large" ? width - hint.length - 1 : 1;
-    draw(hintX, 1, hint, chalk.gray.italic);
+    terminal.draw(hintX, 1, hint, chalk.gray.italic);
 }

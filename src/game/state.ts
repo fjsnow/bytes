@@ -24,28 +24,9 @@ export interface AppState {
             scrollOffset: number;
         };
         upgradesShowMaxed: boolean;
+        lastClickTime: number;
     };
 }
-
-export const appState: AppState = {
-    screen: "main",
-    previousScreen: null,
-    layout: "medium",
-    ui: {
-        focus: "main",
-        highlightTicks: 0,
-        fallingBits: [],
-        workers: {
-            selectedIndex: 0,
-            scrollOffset: 0,
-        },
-        upgrades: {
-            selectedIndex: 0,
-            scrollOffset: 0,
-        },
-        upgradesShowMaxed: false,
-    },
-};
 
 export interface GameState {
     cookies: number;
@@ -55,10 +36,35 @@ export interface GameState {
     prestige: number;
 }
 
-export const gameState: GameState = {
-    cookies: 0,
-    cps: 0,
-    workers: {},
-    upgrades: {},
-    prestige: 0,
-};
+export function createInitialAppState(): AppState {
+    return {
+        screen: "main",
+        previousScreen: null,
+        layout: "medium",
+        ui: {
+            focus: "main",
+            highlightTicks: 0,
+            fallingBits: [],
+            workers: {
+                selectedIndex: 0,
+                scrollOffset: 0,
+            },
+            upgrades: {
+                selectedIndex: 0,
+                scrollOffset: 0,
+            },
+            upgradesShowMaxed: false,
+            lastClickTime: 0,
+        },
+    };
+}
+
+export function createInitialGameState(): GameState {
+    return {
+        cookies: 0,
+        cps: 0,
+        workers: {},
+        upgrades: {},
+        prestige: 0,
+    };
+}

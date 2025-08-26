@@ -1,13 +1,13 @@
-import { appState, gameState } from "./state";
+import type { AppState, GameState } from "./state";
 import { WORKER_DATA, type Worker } from "./data/workers";
-import { UPGRADE_DATA, type Upgrade } from "./data/upgrades";
-import { getSize } from "../core/screen";
+import { UPGRADE_DATA } from "./data/upgrades";
+import type { ITerminal } from "../core/terminal";
 
 function getWorkerCost(worker: Worker, count: number) {
     return Math.floor(worker.baseCost * Math.pow(1.15, count));
 }
 
-export function recalcCps() {
+export function recalcCps(gameState: GameState) {
     let total = 0;
 
     for (const worker of WORKER_DATA) {
@@ -89,19 +89,23 @@ export function recalcCps() {
     gameState.cps = total;
 }
 
-function getClickDelay() {
+function getClickDelay(gameState: GameState) {
     const baseDelay = 100;
     const ergonomic = gameState.upgrades["ergonomic_mice"] || 0;
     return baseDelay / (1 + ergonomic * 0.5);
 }
 
-let lastSpace = 0;
-export function clickCookie() {
-    if (Date.now() - lastSpace < getClickDelay()) {
-        lastSpace = Date.now();
+export function clickCookie(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
+    const clickDelay = getClickDelay(gameState);
+    if (Date.now() - appState.ui.lastClickTime < clickDelay) {
+        appState.ui.lastClickTime = Date.now();
         return;
     }
-    lastSpace = Date.now();
+    appState.ui.lastClickTime = Date.now();
 
     let clickGain = 1;
 
@@ -112,7 +116,7 @@ export function clickCookie() {
     gameState.cookies += clickGain;
     appState.ui.highlightTicks = 10;
 
-    const { width, height } = getSize();
+    const { width, height } = terminal.getSize();
     appState.ui.fallingBits.push({
         x: Math.floor(Math.random() * (width - 2)) + 1,
         y: Math.floor(Math.random() * (height + 30)) - 15,
@@ -121,7 +125,7 @@ export function clickCookie() {
     });
 }
 
-export function buyWorker(id: string) {
+export function buyWorker(id: string, gameState: GameState) {
     const worker = WORKER_DATA.find((w) => w.id === id);
     if (!worker) return false;
     const count = gameState.workers[id] || 0;
@@ -129,23 +133,23 @@ export function buyWorker(id: string) {
     if (gameState.cookies >= cost) {
         gameState.cookies -= cost;
         gameState.workers[id] = count + 1;
-        recalcCps();
+        recalcCps(gameState);
         return true;
     }
     return false;
 }
 
-export function buyUpgrade(id: string) {
+export function buyUpgrade(id: string, gameState: GameState) {
     const upgrade = UPGRADE_DATA.find((u) => u.id === id);
     if (!upgrade) return false;
     const owned = gameState.upgrades[id] || 0;
     if (upgrade.maxOwned && owned >= upgrade.maxOwned) return false;
 
-    const cost = upgrade.baseCost;
+    const cost = Math.floor(upgrade.baseCost * Math.pow(1.15, owned));
     if (gameState.cookies >= cost) {
         gameState.cookies -= cost;
         gameState.upgrades[id] = owned + 1;
-        recalcCps();
+        recalcCps(gameState);
         return true;
     }
     return false;

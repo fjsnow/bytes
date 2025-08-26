@@ -1,22 +1,26 @@
 import chalk from "chalk";
-import { draw, getCenterForSize, getSize } from "../../core/screen";
+import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
-import { gameState, appState } from "../state";
+import type { AppState, GameState } from "../state";
 
-export function drawStats() {
+export function drawStats(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
     const cookiesText = formatBytes(gameState.cookies);
     const cpsText = formatBytes(gameState.cps);
 
     const statsText = cookiesText + "   (" + cpsText + "/s)";
     const statsWidth = statsText.length;
 
-    const { width, height } = getSize();
+    const { width, height } = terminal.getSize();
 
     let x: number;
     let y: number;
 
     if (appState.layout === "small") {
-        const center = getCenterForSize(statsWidth, 0);
+        const center = terminal.getCenterForSize(statsWidth, 0);
         x = center.x;
         y = Math.floor(height / 2) - 8;
     } else if (appState.layout === "medium") {
@@ -25,11 +29,16 @@ export function drawStats() {
         x = leftPanelWidth + Math.floor((rightWidth - statsWidth) / 2);
         y = Math.floor(height / 2) - 8;
     } else {
-        const center = getCenterForSize(statsWidth, 0);
+        const center = terminal.getCenterForSize(statsWidth, 0);
         x = center.x;
         y = Math.floor(height / 2) - 8;
     }
 
-    draw(x, y, " " + cookiesText + " ", chalk.white.bgBlack);
-    draw(x + cookiesText.length + 3, y, "(" + cpsText + "/s)", chalk.gray);
+    terminal.draw(x, y, " " + cookiesText + " ", chalk.white.bgBlack);
+    terminal.draw(
+        x + cookiesText.length + 3,
+        y,
+        "(" + cpsText + "/s)",
+        chalk.gray,
+    );
 }

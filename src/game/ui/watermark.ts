@@ -1,10 +1,10 @@
 import chalk from "chalk";
-import { draw, getCenterForSize, getSize } from "../../core/screen";
+import type { ITerminal } from "../../core/terminal";
 
-export function drawWatermark() {
-    const { height } = getSize();
+export function drawWatermark(terminal: ITerminal) {
+    const { height } = terminal.getSize();
 
-    const text = "(c) fjsn";
-    const { x } = getCenterForSize(text.length, 0);
-    draw(x, height - 1, text, chalk.gray);
+    const text = "ssh b.fjsn.io";
+    const { x } = terminal.getCenterForSize(text.length, 0);
+    terminal.draw(x, height - 1, text, chalk.gray);
 }

@@ -1,18 +1,68 @@
-import { setupScreen, restoreScreen } from "./core/screen";
-import { startTicker } from "./core/ticker";
-import { startRenderer } from "./core/renderer";
-import { setupGameInput } from "./game/input";
-import { initSaveSystem } from "./core/save";
+import { CliTerminal, type ITerminal } from "./core/terminal";
+import {
+    startTicker,
+    registerSession as registerTickerSession,
+    stopTicker,
+} from "./core/ticker";
+import {
+    startRenderer,
+    registerSession as registerRendererSession,
+    stopRenderer,
+} from "./core/renderer";
+import { GameSession } from "./game/session";
+import { createInitialAppState } from "./game/state";
+import { startSshServer } from "./server";
+import { logger } from "./utils/logger";
 
-const playerKey: string | null = process.argv[2] || null;
-initSaveSystem(playerKey);
+const isServerMode = process.argv.includes("--server");
 
-setupScreen();
-setupGameInput();
-startTicker();
-startRenderer();
+async function runSinglePlayer() {
+    const appState = createInitialAppState();
+    const terminal: ITerminal = new CliTerminal(appState);
+    const gameSession = new GameSession(
+        "local-player",
+        terminal,
+        null,
+        appState,
+        null,
+    );
 
-process.on("SIGINT", () => {
-    restoreScreen();
-    process.exit(0);
-});
+    gameSession.init();
+
+    registerTickerSession(gameSession);
+    registerRendererSession(gameSession);
+
+    startTicker(false);
+    startRenderer();
+
+    const cleanup = async () => {
+        stopTicker();
+        stopRenderer();
+        await gameSession.destroy();
+    };
+
+    process.on("exit", cleanup);
+}
+
+async function main() {
+    if (isServerMode) {
+        logger.info("Starting in server mode.");
+        const portArgIndex = process.argv.indexOf("--server");
+        const port =
+            portArgIndex !== -1
+                ? parseInt(process.argv[portArgIndex + 1])
+                : undefined;
+        if (port === undefined || isNaN(port)) {
+            logger.error(
+                "No server port specified. Use --server <port> to set the port.",
+            );
+            process.exit(1);
+        }
+        await startSshServer(port);
+    } else {
+        logger.info("Starting in single-player CLI mode.");
+        await runSinglePlayer();
+    }
+}
+
+main().catch(console.error);

@@ -7,8 +7,8 @@ import { UPGRADE_DATA, type Upgrade } from "../data/upgrades";
 function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
-        const owned = gameState.upgrades[u.id] || 0;
-        return !u.maxOwned || owned < u.maxOwned;
+        const owned = gameState.upgrades[u.id] ?? 0;
+        return u.maxOwned === undefined || owned < u.maxOwned;
     });
 }
 
@@ -38,7 +38,7 @@ function drawUpgrade(
     gameState: GameState,
 ) {
     const count = gameState.upgrades[upgrade.id] || 0;
-    const cost = Math.floor(upgrade.baseCost * Math.pow(1.15, count));
+    const cost = upgrade.cost(count);
     const formattedCost = formatBytes(cost);
     const canAfford = gameState.cookies >= cost;
 
@@ -51,7 +51,7 @@ function drawUpgrade(
 
     const ownedText = upgrade.maxOwned
         ? upgrade.maxOwned === 1
-            ? count === 1
+            ? count >= 1
                 ? " (owned)"
                 : " (not owned)"
             : ` (owned: ${count} / ${upgrade.maxOwned})`

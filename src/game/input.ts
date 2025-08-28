@@ -8,7 +8,7 @@ export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
         const owned = gameState.upgrades[u.id] || 0;
-        return !u.maxOwned || owned < u.maxOwned;
+        return u.maxOwned === undefined || owned < u.maxOwned;
     });
 }
 

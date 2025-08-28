@@ -3,10 +3,6 @@ import { WORKER_DATA, type Worker } from "./data/workers";
 import { UPGRADE_DATA } from "./data/upgrades";
 import type { ITerminal } from "../core/terminal";
 
-function getWorkerCost(worker: Worker, count: number) {
-    return Math.floor(worker.baseCost * Math.pow(1.15, count));
-}
-
 export function recalcCps(gameState: GameState) {
     let total = 0;
 
@@ -129,7 +125,7 @@ export function buyWorker(id: string, gameState: GameState) {
     const worker = WORKER_DATA.find((w) => w.id === id);
     if (!worker) return false;
     const count = gameState.workers[id] || 0;
-    const cost = getWorkerCost(worker, count);
+    const cost = worker.cost(count);
     if (gameState.cookies >= cost) {
         gameState.cookies -= cost;
         gameState.workers[id] = count + 1;
@@ -143,9 +139,10 @@ export function buyUpgrade(id: string, gameState: GameState) {
     const upgrade = UPGRADE_DATA.find((u) => u.id === id);
     if (!upgrade) return false;
     const owned = gameState.upgrades[id] || 0;
-    if (upgrade.maxOwned && owned >= upgrade.maxOwned) return false;
+    if (upgrade.maxOwned !== undefined && owned >= upgrade.maxOwned)
+        return false;
 
-    const cost = Math.floor(upgrade.baseCost * Math.pow(1.15, owned));
+    const cost = upgrade.cost(owned);
     if (gameState.cookies >= cost) {
         gameState.cookies -= cost;
         gameState.upgrades[id] = owned + 1;

@@ -4,10 +4,6 @@ import { formatBytes } from "../../utils/bytes";
 import type { AppState, GameState } from "../state";
 import { WORKER_DATA, type Worker } from "../data/workers";
 
-function getWorkerCost(worker: Worker, count: number) {
-    return worker.baseCost * Math.pow(1.15, count);
-}
-
 function drawWorker(
     terminal: ITerminal,
     y: number,
@@ -15,8 +11,8 @@ function drawWorker(
     highlight: boolean,
     gameState: GameState,
 ) {
-    const count = gameState.workers[worker.id] || 0;
-    const cost = getWorkerCost(worker, count);
+    const count = gameState.workers[worker.id] ?? 0;
+    const cost = worker.cost(count);
     const formattedCost = formatBytes(cost);
     const canAfford = gameState.cookies >= cost;
 

@@ -7,17 +7,21 @@ import { UPGRADE_DATA } from "./data/upgrades";
 export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
-        const owned = gameState.upgrades[u.id] || 0;
+        const owned = gameState.upgrades?.[u.id] ?? 0;
         return u.maxOwned === undefined || owned < u.maxOwned;
     });
 }
 
-export function ensureUpgradeVisible(appState: AppState, terminal: ITerminal) {
+export function ensureUpgradeVisible(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
     const { height } = terminal.getSize();
     const maxPerUpgrade = 5;
     const maxVisible = Math.floor((height - 3) / maxPerUpgrade);
 
-    const filtered = getFilteredUpgrades(appState, {} as GameState);
+    const filtered = getFilteredUpgrades(appState, gameState);
     const sel = appState.ui.upgrades.selectedIndex;
     let scroll = appState.ui.upgrades.scrollOffset;
 
@@ -72,7 +76,7 @@ export function moveUpgradeSelection(
     if (appState.ui.upgrades.selectedIndex >= filtered.length)
         appState.ui.upgrades.selectedIndex = filtered.length - 1;
 
-    ensureUpgradeVisible(appState, terminal);
+    ensureUpgradeVisible(appState, gameState, terminal);
 }
 
 export function cycleFocus(appState: AppState) {
@@ -98,14 +102,6 @@ export function handleGameInput(
         return;
     }
 
-    if (appState.layout === "large") {
-        handleLargeInput(appState, gameState, terminal, key);
-    } else if (appState.layout === "medium") {
-        handleMediumInput(appState, gameState, terminal, key);
-    } else {
-        handleSmallInput(appState, gameState, terminal, key);
-    }
-
     if (key.toLowerCase() === "h") {
         const prevFiltered = getFilteredUpgrades(appState, gameState);
         const prevUpgrade = prevFiltered[appState.ui.upgrades.selectedIndex];
@@ -123,12 +119,28 @@ export function handleGameInput(
             } else {
                 appState.ui.upgrades.selectedIndex = Math.max(
                     0,
-                    appState.ui.upgrades.selectedIndex - 1,
+                    newFiltered.length - 1, 
                 );
             }
+        } else if (newFiltered.length > 0) {
+            appState.ui.upgrades.selectedIndex = Math.min(
+                appState.ui.upgrades.selectedIndex,
+                newFiltered.length - 1,
+            );
+        } else {
+            appState.ui.upgrades.selectedIndex = 0;
         }
 
-        ensureUpgradeVisible(appState, terminal);
+        ensureUpgradeVisible(appState, gameState, terminal);
+        return;
+    }
+
+    if (appState.layout === "large") {
+        handleLargeInput(appState, gameState, terminal, key);
+    } else if (appState.layout === "medium") {
+        handleMediumInput(appState, gameState, terminal, key);
+    } else {
+        handleSmallInput(appState, gameState, terminal, key);
     }
 }
 

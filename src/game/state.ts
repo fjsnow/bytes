@@ -61,7 +61,7 @@ export function createInitialAppState(): AppState {
 
 export function createInitialGameState(): GameState {
     return {
-        cookies: 0,
+        cookies: 1024 ** 12,
         cps: 0,
         workers: {},
         upgrades: {},

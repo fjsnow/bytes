@@ -3,6 +3,10 @@ import type { ITerminal } from "../../core/terminal";
 
 export function tickBits(appState: AppState, terminal: ITerminal) {
     if (appState.ui.fallingBits.length === 0) return;
+    if (appState.ui.settings.disableFallingBits) {
+        appState.ui.fallingBits = [];
+        return;
+    }
 
     const { height } = terminal.getSize();
 

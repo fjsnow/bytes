@@ -56,6 +56,8 @@ export function initSaveSystem(
                                 appState.ui.settings.pureBlackBackground,
                             reduceFallingBits:
                                 appState.ui.settings.reduceFallingBits,
+                            disableFallingBits:
+                                appState.ui.settings.disableFallingBits,
                         },
                     },
                 },
@@ -81,6 +83,10 @@ export function initSaveSystem(
                     false;
                 appState.ui.settings.reduceFallingBits =
                     parsedData.appSettings.ui.settings.reduceFallingBits ??
+                    false;
+
+                appState.ui.settings.disableFallingBits =
+                    parsedData.appSettings.ui.settings.disableFallingBits ??
                     false;
             }
             logger.info(`Loaded game state for account ${accountId}.`);
@@ -128,6 +134,9 @@ export function initSaveSystem(
                     appState.ui.settings.reduceFallingBits =
                         parsed.appSettings.ui.settings.reduceFallingBits ??
                         false;
+                    appState.ui.settings.disableFallingBits =
+                        parsed.appSettings.ui.settings.disableFallingBits ??
+                        false;
                 }
             } catch (e) {
                 console.error("Failed to parse local save", e);
@@ -153,6 +162,8 @@ export function initSaveSystem(
                             appState.ui.settings.pureBlackBackground,
                         reduceFallingBits:
                             appState.ui.settings.reduceFallingBits,
+                        disableFallingBits:
+                            appState.ui.settings.disableFallingBits,
                     },
                 },
             },

@@ -11,7 +11,7 @@ export function tickCookie(
 
     if (appState.ui.highlightTicks > 0) appState.ui.highlightTicks -= 1;
 
-    if (gameState.cps > 0n) {
+    if (gameState.cps > 0n && !appState.ui.settings.disableFallingBits) {
         const expectedBits = Math.log1p(Number(gameState.cps)) / Math.log(1.5);
 
         let bitsThisTick = expectedBits / 25;

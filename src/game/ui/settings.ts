@@ -11,7 +11,10 @@ import {
 export type SettingsItem =
     | {
           type: "toggle";
-          id: "pureBlackBackground" | "reduceFallingBits";
+          id:
+              | "pureBlackBackground"
+              | "reduceFallingBits"
+              | "disableFallingBits";
           label: string;
           description?: string;
       }
@@ -38,6 +41,12 @@ export function getSettingsItems(appState: AppState): SettingsItem[] {
             id: "reduceFallingBits",
             label: "Reduce Falling Bits",
             description: "Reduces distractions by having fewer falling bits.",
+        },
+        {
+            type: "toggle",
+            id: "disableFallingBits",
+            label: "Disable Falling Bits",
+            description: "Completely disables all falling bits.",
         },
     ];
 

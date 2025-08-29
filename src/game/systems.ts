@@ -114,13 +114,15 @@ export function clickCookie(
     appState.ui.highlightTicks = 10;
 
     if (!appState.ui.settings.reduceFallingBits || Math.random() < 0.5) {
-        const { width, height } = terminal.getSize();
-        appState.ui.fallingBits.push({
-            x: Math.floor(Math.random() * (width - 2)) + 1,
-            y: Math.floor(Math.random() * (height + 30)) - 15,
-            one: Math.random() < 0.5,
-            aliveTicks: 10,
-        });
+        if (!appState.ui.settings.disableFallingBits) {
+            const { width, height } = terminal.getSize();
+            appState.ui.fallingBits.push({
+                x: Math.floor(Math.random() * (width - 2)) + 1,
+                y: Math.floor(Math.random() * (height + 30)) - 15,
+                one: Math.random() < 0.5,
+                aliveTicks: 10,
+            });
+        }
     }
 }
 

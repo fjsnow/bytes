@@ -38,6 +38,7 @@ export interface AppState {
             selectedIndex: number;
             pureBlackBackground: boolean;
             reduceFallingBits: boolean;
+            disableFallingBits: boolean;
             linkingToken: string | null;
             linkingTokenGeneratedAt?: number;
             linkedKeys: string[];
@@ -82,6 +83,7 @@ export function createInitialStandaloneAppState(layout: Layout): AppState {
                 selectedIndex: 0,
                 pureBlackBackground: false,
                 reduceFallingBits: false,
+                disableFallingBits: false,
                 linkingToken: null,
                 linkedKeys: [],
                 isDeletingAccount: false,
@@ -129,6 +131,7 @@ export function createInitialSSHAppState(
                 selectedIndex: 0,
                 pureBlackBackground: false,
                 reduceFallingBits: false,
+                disableFallingBits: false,
                 linkingToken: null,
                 linkedKeys: [],
                 isDeletingAccount: false,

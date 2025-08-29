@@ -143,7 +143,7 @@ export function createInitialSSHAppState(
 
 export function createInitialGameState(): GameState {
     return {
-        cookies: 1024n ** 12n,
+        cookies: 0n,
         cps: 0n,
         workers: {},
         upgrades: {},

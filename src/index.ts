@@ -10,21 +10,16 @@ import {
     stopRenderer,
 } from "./core/renderer";
 import { GameSession } from "./game/session";
-import { createInitialAppState } from "./game/state";
+import { createInitialStandaloneAppState } from "./game/state";
 import { logger } from "./utils/logger";
 
 const isServerMode = process.argv.includes("--server");
 
 async function runSinglePlayer() {
-    const appState = createInitialAppState();
+    const appState = createInitialStandaloneAppState("medium");
     const terminal: ITerminal = new CliTerminal(appState);
-    const gameSession = new GameSession(
-        "local-player",
-        terminal,
-        null,
-        appState,
-        null,
-    );
+
+    const gameSession = new GameSession(terminal, appState);
 
     gameSession.init();
 

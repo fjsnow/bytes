@@ -6,7 +6,7 @@ const activeSessions = new Set<GameSession>();
 let isServerMode: boolean = false;
 let lastSaveTime: number = 0;
 
-const AUTOSAVE_INTERVAL_MS = 60_000;
+const AUTOSAVE_INTERVAL_MS = 60 * 1000;
 
 export const TPS = 25;
 

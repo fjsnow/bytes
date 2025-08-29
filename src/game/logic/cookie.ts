@@ -6,19 +6,22 @@ export function tickCookie(
     gameState: GameState,
     terminal: ITerminal,
 ) {
-    const cookiesThisTick = gameState.cps / 10;
+    const cookiesThisTick = gameState.cps / 10n;
     gameState.cookies += cookiesThisTick;
 
     if (appState.ui.highlightTicks > 0) appState.ui.highlightTicks -= 1;
 
-    if (gameState.cps > 0) {
-        const expectedBits = Math.log1p(gameState.cps) / Math.log(1.2);
-        const bitsThisTick = expectedBits / 25;
-        const maxBits = 5;
+    if (gameState.cps > 0n) {
+        const expectedBits = Math.log1p(Number(gameState.cps)) / Math.log(1.5);
+
+        let bitsThisTick = expectedBits / 25;
+        if (appState.ui.settings.reduceFallingBits) {
+            bitsThisTick = bitsThisTick * 0.5;
+        }
 
         let spawnCount = 0;
         if (bitsThisTick > 1) {
-            spawnCount = Math.min(maxBits, Math.floor(bitsThisTick));
+            spawnCount = Math.floor(bitsThisTick);
         } else if (Math.random() < bitsThisTick) {
             spawnCount = 1;
         }

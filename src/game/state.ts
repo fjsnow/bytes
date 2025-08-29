@@ -1,11 +1,20 @@
+import { Database } from "bun:sqlite";
+
+export type Mode = "standalone" | "ssh";
 export type Screen = "main" | "workers" | "upgrades" | "settings";
 export type Layout = "small" | "medium" | "large";
 export type Focus = "main" | "workers" | "upgrades" | "settings";
 
 export interface AppState {
     screen: Screen;
-    previousScreen: Screen | null;
     layout: Layout;
+    mode: Mode;
+    ssh: {
+        accountId: number;
+        accountKey: string;
+        db: Database;
+        isNewAccount?: boolean;
+    } | null;
     ui: {
         focus: Focus;
         highlightTicks: number;
@@ -25,24 +34,38 @@ export interface AppState {
         };
         upgradesShowMaxed: boolean;
         lastClickTime: number;
+        settings: {
+            selectedIndex: number;
+            pureBlackBackground: boolean;
+            reduceFallingBits: boolean;
+            linkingToken: string | null;
+            linkingTokenGeneratedAt?: number;
+            linkedKeys: string[];
+            isDeletingAccount: boolean;
+            confirmDeleteAccount: boolean;
+            isDeletingKey: boolean;
+            keyToDelete: string | null;
+        };
+        lastFocusBeforeSettings?: Focus;
     };
 }
 
 export interface GameState {
-    cookies: number;
-    cps: number;
+    cookies: bigint;
+    cps: bigint;
     workers: Record<string, number>;
     upgrades: Record<string, number>;
     prestige: number;
 }
 
-export function createInitialAppState(): AppState {
+export function createInitialStandaloneAppState(layout: Layout): AppState {
     return {
         screen: "main",
-        previousScreen: null,
-        layout: "medium",
+        layout,
+        mode: "standalone",
+        ssh: null,
         ui: {
-            focus: "main",
+            focus: layout === "small" ? "main" : "workers",
             highlightTicks: 0,
             fallingBits: [],
             workers: {
@@ -55,14 +78,73 @@ export function createInitialAppState(): AppState {
             },
             upgradesShowMaxed: false,
             lastClickTime: 0,
+            settings: {
+                selectedIndex: 0,
+                pureBlackBackground: false,
+                reduceFallingBits: false,
+                linkingToken: null,
+                linkedKeys: [],
+                isDeletingAccount: false,
+                confirmDeleteAccount: false,
+                isDeletingKey: false,
+                keyToDelete: null,
+            },
+            lastFocusBeforeSettings: layout === "small" ? "main" : "workers",
+        },
+    };
+}
+
+export function createInitialSSHAppState(
+    accountId: number,
+    accountKey: string,
+    db: Database,
+    layout: Layout,
+    isNewAccount: boolean = false,
+): AppState {
+    return {
+        screen: "main",
+        layout,
+        mode: "ssh",
+        ssh: {
+            accountId,
+            accountKey,
+            db,
+            isNewAccount,
+        },
+        ui: {
+            focus: layout === "small" ? "main" : "workers",
+            highlightTicks: 0,
+            fallingBits: [],
+            workers: {
+                selectedIndex: 0,
+                scrollOffset: 0,
+            },
+            upgrades: {
+                selectedIndex: 0,
+                scrollOffset: 0,
+            },
+            upgradesShowMaxed: false,
+            lastClickTime: 0,
+            settings: {
+                selectedIndex: 0,
+                pureBlackBackground: false,
+                reduceFallingBits: false,
+                linkingToken: null,
+                linkedKeys: [],
+                isDeletingAccount: false,
+                confirmDeleteAccount: false,
+                isDeletingKey: false,
+                keyToDelete: null,
+            },
+            lastFocusBeforeSettings: layout === "small" ? "main" : "workers",
         },
     };
 }
 
 export function createInitialGameState(): GameState {
     return {
-        cookies: 1024 ** 12,
-        cps: 0,
+        cookies: 1024n ** 12n,
+        cps: 0n,
         workers: {},
         upgrades: {},
         prestige: 0,

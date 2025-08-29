@@ -53,6 +53,8 @@ export function drawWorkers(
     const availableHeight = height - 3;
     const maxWorkers = Math.floor(availableHeight / 4);
 
+    let scrollbarX = 1;
+
     terminal.draw(
         1,
         2,
@@ -91,8 +93,32 @@ export function drawWorkers(
 
         for (let y = 3; y < 3 + barHeight; y++) {
             if (y >= scrollbarY && y < scrollbarY + scrollbarHeight) {
-                terminal.draw(1, y, "┃", chalk.gray);
+                terminal.draw(scrollbarX, y, "┃", chalk.gray);
             }
         }
+    }
+}
+
+export function moveWorkerSelection(
+    appState: AppState,
+    terminal: ITerminal,
+    delta: number,
+) {
+    const { height } = terminal.getSize();
+    const maxVisible = Math.floor((height - 3) / 4);
+    appState.ui.workers.selectedIndex += delta;
+    if (appState.ui.workers.selectedIndex < 0)
+        appState.ui.workers.selectedIndex = 0;
+    if (appState.ui.workers.selectedIndex >= WORKER_DATA.length)
+        appState.ui.workers.selectedIndex = WORKER_DATA.length - 1;
+    if (appState.ui.workers.selectedIndex < appState.ui.workers.scrollOffset) {
+        appState.ui.workers.scrollOffset = appState.ui.workers.selectedIndex;
+    }
+    if (
+        appState.ui.workers.selectedIndex >=
+        appState.ui.workers.scrollOffset + maxVisible
+    ) {
+        appState.ui.workers.scrollOffset =
+            appState.ui.workers.selectedIndex - maxVisible + 1;
     }
 }

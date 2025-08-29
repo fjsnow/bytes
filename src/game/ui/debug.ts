@@ -9,7 +9,7 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
     terminal.draw(
         0,
         0,
-        `fps: ${getFps()}, width: ${width}, height: ${height}, screen: ${appState.screen}, prev: ${appState.previousScreen}, layout: ${appState.layout}`,
+        `fps: ${getFps()}, width: ${width}, height: ${height}, screen: ${appState.screen}, layout: ${appState.layout}`,
         chalk.red,
     );
 }

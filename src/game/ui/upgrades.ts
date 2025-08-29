@@ -1,31 +1,16 @@
 import chalk from "chalk";
 import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
+import { wrapText } from "../../utils/text";
 import type { AppState, GameState } from "../state";
 import { UPGRADE_DATA, type Upgrade } from "../data/upgrades";
 
-function getFilteredUpgrades(appState: AppState, gameState: GameState) {
+export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
         if (appState.ui.upgradesShowMaxed) return true;
-        const owned = gameState.upgrades[u.id] ?? 0;
-        return u.maxOwned === undefined || owned < u.maxOwned;
+        const owned = gameState.upgrades[u.id] || 0;
+        return !u.maxOwned || owned < u.maxOwned;
     });
-}
-
-function wrapText(text: string, width: number): string[] {
-    const words = text.split(" ");
-    const lines: string[] = [];
-    let current = "";
-    for (const word of words) {
-        if ((current + word).length > width) {
-            lines.push(current.trim());
-            current = word + " ";
-        } else {
-            current += word + " ";
-        }
-    }
-    if (current.trim().length > 0) lines.push(current.trim());
-    return lines;
 }
 
 function drawUpgrade(
@@ -51,7 +36,7 @@ function drawUpgrade(
 
     const ownedText = upgrade.maxOwned
         ? upgrade.maxOwned === 1
-            ? count >= 1
+            ? count === 1
                 ? " (owned)"
                 : " (not owned)"
             : ` (owned: ${count} / ${upgrade.maxOwned})`
@@ -183,4 +168,47 @@ export function drawUpgrades(
         : "Un[h]ide maxed upgrades";
     const hintX = appState.layout === "large" ? width - hint.length - 1 : 1;
     terminal.draw(hintX, 1, hint, chalk.gray.italic);
+}
+
+export function ensureUpgradeVisible(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+) {
+    const { height } = terminal.getSize();
+    const maxPerUpgrade = 5;
+    const maxVisible = Math.floor((height - 3) / maxPerUpgrade);
+
+    const filtered = getFilteredUpgrades(appState, gameState);
+    const sel = appState.ui.upgrades.selectedIndex;
+    let scroll = appState.ui.upgrades.scrollOffset;
+
+    if (sel < scroll) {
+        scroll = sel;
+    } else if (sel >= scroll + maxVisible) {
+        scroll = sel - maxVisible + 1;
+    }
+
+    const maxScroll = Math.max(0, filtered.length - maxVisible);
+    if (scroll > maxScroll) {
+        scroll = maxScroll;
+    }
+
+    appState.ui.upgrades.scrollOffset = Math.max(0, scroll);
+}
+
+export function moveUpgradeSelection(
+    appState: AppState,
+    terminal: ITerminal,
+    delta: number,
+    gameState: GameState,
+) {
+    const filtered = getFilteredUpgrades(appState, gameState);
+    appState.ui.upgrades.selectedIndex += delta;
+    if (appState.ui.upgrades.selectedIndex < 0)
+        appState.ui.upgrades.selectedIndex = 0;
+    if (appState.ui.upgrades.selectedIndex >= filtered.length)
+        appState.ui.upgrades.selectedIndex = filtered.length - 1;
+
+    ensureUpgradeVisible(appState, gameState, terminal);
 }

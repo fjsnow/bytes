@@ -1,6 +1,8 @@
 import ansiEscapes from "ansi-escapes";
-import type { Channel } from "ssh2";
 import type { AppState } from "../game/state";
+import type { Duplex } from "stream";
+import chalk from "chalk";
+import { logger } from "../utils/logger";
 
 type Cell = { char: string; color?: (s: string) => string };
 type KeyHandler = (key: string) => void;
@@ -53,14 +55,8 @@ export class CliTerminal implements ITerminal {
             this.appState.layout = "small";
         } else if (this.width < 120) {
             this.appState.layout = "medium";
-            if (this.appState.screen === "main") {
-                this.appState.screen = "workers";
-            }
         } else {
             this.appState.layout = "large";
-            if (this.appState.screen === "main") {
-                this.appState.screen = "workers";
-            }
         }
     }
 
@@ -141,9 +137,18 @@ export class CliTerminal implements ITerminal {
     public clear(full: boolean = false) {
         if (full && process.stdout.isTTY) {
             process.stdout.write(ansiEscapes.clearScreen);
+            if (this.appState.ui.settings.pureBlackBackground) {
+                for (let y = 0; y < this.height; y++) {
+                    process.stdout.write(
+                        ansiEscapes.cursorTo(0, y) +
+                            chalk.bgBlack(" ".repeat(this.width)),
+                    );
+                }
+            }
             process.stdout.write(ansiEscapes.cursorHide);
         }
         this.nextBuffer = this.makeBuffer(this.width, this.height);
+        if (full) this.prevBuffer = this.makeBuffer(this.width, this.height);
     }
 
     public draw(
@@ -165,15 +170,31 @@ export class CliTerminal implements ITerminal {
 
     public render() {
         if (!process.stdout.isTTY) return;
+        const blackBackground = this.appState.ui.settings.pureBlackBackground;
 
         for (let y = 0; y < this.height; y++) {
-            const nextRow = this.nextBuffer[y]
-                .map((cell) => (cell.color ? cell.color(cell.char) : cell.char))
-                .join("");
+            let nextRow = "";
+            let prevRow = "";
 
-            const prevRow = this.prevBuffer[y]
-                .map((cell) => (cell.color ? cell.color(cell.char) : cell.char))
-                .join("");
+            for (let x = 0; x < this.width; x++) {
+                const nextCell = this.nextBuffer[y][x];
+                const prevCell = this.prevBuffer[y][x];
+
+                let nextStyledChar = nextCell.char;
+                let prevStyledChar = prevCell.char;
+
+                if (blackBackground) {
+                    nextStyledChar = chalk.bgBlack(nextStyledChar);
+                    prevStyledChar = chalk.bgBlack(prevStyledChar);
+                }
+
+                nextRow += nextCell.color
+                    ? nextCell.color(nextStyledChar)
+                    : nextStyledChar;
+                prevRow += prevCell.color
+                    ? prevCell.color(prevStyledChar)
+                    : prevStyledChar;
+            }
 
             let currentRow = nextRow;
 
@@ -209,7 +230,7 @@ export class CliTerminal implements ITerminal {
 }
 
 export class SshTerminal implements ITerminal {
-    private channel: Channel;
+    private stream: Duplex;
     private width: number;
     private height: number;
     private prevBuffer: Cell[][];
@@ -220,13 +241,13 @@ export class SshTerminal implements ITerminal {
     private clientConnection: import("ssh2").Connection;
 
     constructor(
-        channel: Channel,
+        stream: Duplex,
         initialWidth: number,
         initialHeight: number,
         appState: AppState,
         clientConnection: import("ssh2").Connection,
     ) {
-        this.channel = channel;
+        this.stream = stream;
         this.appState = appState;
         this.width = initialWidth;
         this.height = initialHeight;
@@ -248,14 +269,8 @@ export class SshTerminal implements ITerminal {
             this.appState.layout = "small";
         } else if (this.width < 120) {
             this.appState.layout = "medium";
-            if (this.appState.screen === "main") {
-                this.appState.screen = "workers";
-            }
         } else {
             this.appState.layout = "large";
-            if (this.appState.screen === "main") {
-                this.appState.screen = "workers";
-            }
         }
     }
 
@@ -263,24 +278,24 @@ export class SshTerminal implements ITerminal {
         if (this.initialized) return;
         this.initialized = true;
 
-        this.channel.write(ansiEscapes.clearScreen);
-        this.channel.write(ansiEscapes.cursorHide);
-        this.channel.write("\x1b[?1049h");
+        this.stream.write(ansiEscapes.clearScreen);
+        this.stream.write(ansiEscapes.cursorHide);
+        this.stream.write("\x1b[?1049h");
 
-        this.channel.on("data", this.handleKeyData);
-        this.channel.on("close", this.delayedRestore);
-        this.channel.on("end", this.delayedRestore);
+        this.stream.on("data", this.handleKeyData);
+        this.stream.on("close", this.delayedRestore);
+        this.stream.on("end", this.delayedRestore);
     }
 
     private delayedRestore = () => {
         if (!this.initialized) return;
 
-        this.channel.write(ansiEscapes.cursorShow);
-        this.channel.write("\x1b[?1049l");
+        this.stream.write(ansiEscapes.cursorShow);
+        this.stream.write("\x1b[?1049l");
 
-        this.channel.off("data", this.handleKeyData);
-        this.channel.off("close", this.delayedRestore);
-        this.channel.off("end", this.delayedRestore);
+        this.stream.off("data", this.handleKeyData);
+        this.stream.off("close", this.delayedRestore);
+        this.stream.off("end", this.delayedRestore);
         this.keyHandlers = [];
         this.initialized = false;
     };
@@ -288,19 +303,26 @@ export class SshTerminal implements ITerminal {
     public restore = () => {
         if (!this.initialized) return;
 
-        this.channel.write(ansiEscapes.cursorShow);
-        this.channel.write("\x1b[?1049l");
+        this.stream.write(ansiEscapes.cursorShow);
+        this.stream.write("\x1b[?1049l");
 
-        this.channel.off("data", this.handleKeyData);
-        this.channel.off("close", this.delayedRestore);
-        this.channel.off("end", this.delayedRestore);
+        this.stream.off("data", this.handleKeyData);
+        this.stream.off("close", this.delayedRestore);
+        this.stream.off("end", this.delayedRestore);
         this.keyHandlers = [];
         this.initialized = false;
     };
 
     public destroy() {
         this.restore();
-        this.channel.end();
+        this.stream.end();
+    }
+
+    public endAndRestore(message: string) {
+        this.restore();
+        this.stream.write(ansiEscapes.clearScreen);
+        this.stream.write(message);
+        this.stream.end();
     }
 
     public getSshClient(): import("ssh2").Connection {
@@ -320,7 +342,7 @@ export class SshTerminal implements ITerminal {
         const keyString = key.toString("utf8");
         if (keyString === "\u0003") {
             this.restore();
-            this.channel.close();
+            this.stream.end();
             return;
         }
         for (const h of this.keyHandlers) {
@@ -330,10 +352,19 @@ export class SshTerminal implements ITerminal {
 
     public clear(full: boolean = false) {
         if (full) {
-            this.channel.write(ansiEscapes.clearScreen);
-            this.channel.write(ansiEscapes.cursorHide);
+            this.stream.write(ansiEscapes.clearScreen);
+            if (this.appState.ui.settings.pureBlackBackground) {
+                for (let y = 0; y < this.height; y++) {
+                    this.stream.write(
+                        ansiEscapes.cursorTo(0, y) +
+                            chalk.bgBlack(" ".repeat(this.width)),
+                    );
+                }
+            }
+            this.stream.write(ansiEscapes.cursorHide);
         }
         this.nextBuffer = this.makeBuffer(this.width, this.height);
+        if (full) this.prevBuffer = this.makeBuffer(this.width, this.height);
     }
 
     public draw(
@@ -354,23 +385,40 @@ export class SshTerminal implements ITerminal {
     }
 
     public render() {
-        for (let y = 0; y < this.height; y++) {
-            const nextRow = this.nextBuffer[y]
-                .map((cell) => (cell.color ? cell.color(cell.char) : cell.char))
-                .join("");
+        const blackBackground = this.appState.ui.settings.pureBlackBackground;
 
-            const prevRow = this.prevBuffer[y]
-                .map((cell) => (cell.color ? cell.color(cell.char) : cell.char))
-                .join("");
+        for (let y = 0; y < this.height; y++) {
+            let nextRow = "";
+            let prevRow = "";
+
+            for (let x = 0; x < this.width; x++) {
+                const nextCell = this.nextBuffer[y][x];
+                const prevCell = this.prevBuffer[y][x];
+
+                let nextStyledChar = nextCell.color
+                    ? nextCell.color(nextCell.char)
+                    : nextCell.char;
+                let prevStyledChar = prevCell.color
+                    ? prevCell.color(prevCell.char)
+                    : prevCell.char;
+
+                if (blackBackground) {
+                    nextStyledChar = chalk.bgBlack(nextStyledChar);
+                    prevStyledChar = chalk.bgBlack(prevStyledChar);
+                }
+
+                nextRow += nextStyledChar;
+                prevRow += prevStyledChar;
+            }
 
             let currentRow = nextRow;
 
             if (currentRow !== prevRow) {
-                this.channel.write(ansiEscapes.cursorTo(0, y) + currentRow);
+                this.stream.write(ansiEscapes.cursorTo(0, y) + currentRow);
                 this.prevBuffer[y] = this.nextBuffer[y].map((c) => ({ ...c }));
             }
         }
-        this.channel.write(ansiEscapes.cursorTo(0, this.height));
+        this.stream.write(ansiEscapes.cursorTo(0, this.height));
     }
 
     public getSize() {

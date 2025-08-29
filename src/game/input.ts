@@ -1,146 +1,328 @@
 import { clickCookie, buyWorker, buyUpgrade } from "./systems";
-import type { AppState, GameState, Focus } from "./state";
+import type { AppState, GameState, Focus, Layout, Screen } from "./state";
 import type { ITerminal } from "../core/terminal";
 import { WORKER_DATA } from "./data/workers";
-import { UPGRADE_DATA } from "./data/upgrades";
+import { logger, redactPlayerKey } from "../utils/logger";
+import { getSettingsItems, moveSettingsSelection } from "./ui/settings";
+import {
+    getFilteredUpgrades,
+    moveUpgradeSelection,
+    ensureUpgradeVisible,
+} from "./ui/upgrades";
+import { moveWorkerSelection } from "./ui/workers";
+import type { GameSession } from "./session";
+import {
+    deleteAccountData,
+    generateLinkingToken,
+    LINKING_TOKEN_COOLDOWN_MS,
+    revokeLinkingToken,
+    unlinkKey,
+} from "./account";
+import { generateMessage } from "../utils/messages";
 
-export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
-    return UPGRADE_DATA.filter((u) => {
-        if (appState.ui.upgradesShowMaxed) return true;
-        const owned = gameState.upgrades?.[u.id] ?? 0;
-        return u.maxOwned === undefined || owned < u.maxOwned;
-    });
+export function cycleFocus(appState: AppState) {
+    if (appState.screen !== "main") {
+        appState.screen = "main";
+        appState.ui.focus = appState.ui.lastFocusBeforeSettings || "main";
+        if (appState.layout !== "small" && appState.ui.focus === "main") {
+            appState.ui.focus = "workers";
+        }
+        return;
+    }
+
+    const focusOrderForLayout: Record<Layout, Focus[]> = {
+        large: ["main", "workers", "upgrades"],
+        medium: ["main", "workers", "upgrades"],
+        small: ["main"],
+    };
+
+    let order = focusOrderForLayout[appState.layout];
+
+    if (appState.layout !== "small" && appState.ui.focus === "main") {
+        appState.ui.focus = "workers";
+        return;
+    }
+
+    if (appState.layout === "large" || appState.layout === "medium") {
+        const idx = order.indexOf(appState.ui.focus);
+        appState.ui.focus = order[(idx + 1) % order.length];
+        if (appState.ui.focus === "main") {
+            appState.ui.focus = "workers";
+        }
+    } else {
+        appState.ui.focus = "main";
+    }
 }
 
-export function ensureUpgradeVisible(
+export async function handleGameInput(session: GameSession, key: string) {
+    const { appState, gameState, terminal } = session;
+
+    if (key === "\t") {
+        cycleFocus(appState);
+        return;
+    } else if (key === "\u0008" || key === "\u007f") {
+        if (appState.screen !== "main") {
+            if (appState.screen === "settings") {
+                appState.ui.settings.isDeletingAccount = false;
+                appState.ui.settings.confirmDeleteAccount = false;
+                appState.ui.settings.isDeletingKey = false;
+                appState.ui.settings.keyToDelete = null;
+            }
+
+            appState.screen = "main";
+            appState.ui.focus = appState.ui.lastFocusBeforeSettings || "main";
+            if (appState.layout !== "small" && appState.ui.focus === "main") {
+                appState.ui.focus = "workers";
+            }
+            terminal.clear(true);
+            return;
+        }
+    }
+
+    if (appState.screen === "main") {
+        if (appState.layout === "large") {
+            handleLargeInput(appState, gameState, terminal, key);
+        } else if (appState.layout === "medium") {
+            handleMediumInput(appState, gameState, terminal, key);
+        } else {
+            handleSmallInput(appState, gameState, terminal, key);
+        }
+    } else if (appState.screen === "settings") {
+        await handleSettingsScreenInput(session, key);
+    } else if (appState.screen === "workers") {
+        handleWorkersScreenInput(appState, gameState, terminal, key);
+    } else if (appState.screen === "upgrades") {
+        handleUpgradesScreenInput(appState, gameState, terminal, key);
+    }
+}
+
+function toggleUpgradesShowMaxed(
     appState: AppState,
     gameState: GameState,
     terminal: ITerminal,
 ) {
-    const { height } = terminal.getSize();
-    const maxPerUpgrade = 5;
-    const maxVisible = Math.floor((height - 3) / maxPerUpgrade);
+    const currentFiltered = getFilteredUpgrades(appState, gameState);
+    const selectedUpgradeId =
+        currentFiltered[appState.ui.upgrades.selectedIndex]?.id;
 
-    const filtered = getFilteredUpgrades(appState, gameState);
-    const sel = appState.ui.upgrades.selectedIndex;
-    let scroll = appState.ui.upgrades.scrollOffset;
+    appState.ui.upgradesShowMaxed = !appState.ui.upgradesShowMaxed;
+    const newFiltered = getFilteredUpgrades(appState, gameState);
+    let newSelectedIndex = 0;
 
-    if (sel < scroll) {
-        scroll = sel;
-    } else if (sel >= scroll + maxVisible) {
-        scroll = sel - maxVisible + 1;
+    if (selectedUpgradeId) {
+        const foundIndex = newFiltered.findIndex(
+            (u) => u.id === selectedUpgradeId,
+        );
+        if (foundIndex !== -1) {
+            newSelectedIndex = foundIndex;
+        } else {
+            newSelectedIndex = Math.max(
+                0,
+                newFiltered.length > 0 ? newFiltered.length - 1 : 0,
+            );
+        }
+    } else if (newFiltered.length > 0) {
+        newSelectedIndex = Math.min(
+            appState.ui.upgrades.selectedIndex,
+            newFiltered.length - 1,
+        );
     }
 
-    const maxScroll = Math.max(0, filtered.length - maxVisible);
-    if (scroll > maxScroll) {
-        scroll = maxScroll;
-    }
-
-    appState.ui.upgrades.scrollOffset = Math.max(0, scroll);
-}
-
-export function moveWorkerSelection(
-    appState: AppState,
-    terminal: ITerminal,
-    delta: number,
-) {
-    const { height } = terminal.getSize();
-    const maxVisible = Math.floor((height - 3) / 4);
-    appState.ui.workers.selectedIndex += delta;
-    if (appState.ui.workers.selectedIndex < 0)
-        appState.ui.workers.selectedIndex = 0;
-    if (appState.ui.workers.selectedIndex >= WORKER_DATA.length)
-        appState.ui.workers.selectedIndex = WORKER_DATA.length - 1;
-    if (appState.ui.workers.selectedIndex < appState.ui.workers.scrollOffset) {
-        appState.ui.workers.scrollOffset = appState.ui.workers.selectedIndex;
-    }
-    if (
-        appState.ui.workers.selectedIndex >=
-        appState.ui.workers.scrollOffset + maxVisible
-    ) {
-        appState.ui.workers.scrollOffset =
-            appState.ui.workers.selectedIndex - maxVisible + 1;
-    }
-}
-
-export function moveUpgradeSelection(
-    appState: AppState,
-    terminal: ITerminal,
-    delta: number,
-    gameState: GameState,
-) {
-    const filtered = getFilteredUpgrades(appState, gameState);
-    appState.ui.upgrades.selectedIndex += delta;
-    if (appState.ui.upgrades.selectedIndex < 0)
-        appState.ui.upgrades.selectedIndex = 0;
-    if (appState.ui.upgrades.selectedIndex >= filtered.length)
-        appState.ui.upgrades.selectedIndex = filtered.length - 1;
-
+    appState.ui.upgrades.selectedIndex = newSelectedIndex;
     ensureUpgradeVisible(appState, gameState, terminal);
 }
 
-export function cycleFocus(appState: AppState) {
-    if (appState.layout === "large") {
-        const order: Focus[] = ["main", "workers", "upgrades"];
-        const idx = order.indexOf(appState.ui.focus);
-        appState.ui.focus = order[(idx + 1) % order.length];
-    } else if (appState.layout === "medium") {
-        const order: Focus[] = ["main", appState.screen];
-        const idx = order.indexOf(appState.ui.focus);
-        appState.ui.focus = order[(idx + 1) % order.length];
-    }
-}
-
-export function handleGameInput(
+function handleWorkersScreenInput(
     appState: AppState,
     gameState: GameState,
     terminal: ITerminal,
     key: string,
 ) {
-    if (key === "\t") {
-        cycleFocus(appState);
+    if (appState.ui.focus === "workers") {
+        if (key === "j") moveWorkerSelection(appState, terminal, 1);
+        if (key === "k") moveWorkerSelection(appState, terminal, -1);
+        if (key.toLowerCase() === "b") {
+            const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
+            if (worker) buyWorker(worker.id, gameState);
+        }
+    }
+}
+
+function handleUpgradesScreenInput(
+    appState: AppState,
+    gameState: GameState,
+    terminal: ITerminal,
+    key: string,
+) {
+    if (appState.ui.focus === "upgrades") {
+        if (key === "j") moveUpgradeSelection(appState, terminal, 1, gameState);
+        if (key === "k")
+            moveUpgradeSelection(appState, terminal, -1, gameState);
+        if (key.toLowerCase() === "b") {
+            const filtered = getFilteredUpgrades(appState, gameState);
+            const upgrade = filtered[appState.ui.upgrades.selectedIndex];
+            if (upgrade) buyUpgrade(upgrade.id, gameState);
+        }
+        if (key.toLowerCase() === "h") {
+            toggleUpgradesShowMaxed(appState, gameState, terminal);
+        }
+    }
+}
+
+async function handleSettingsScreenInput(session: GameSession, key: string) {
+    const { appState, terminal } = session;
+
+    const allItems = getSettingsItems(appState);
+    const selectedIndex = appState.ui.settings.selectedIndex;
+    const currentSelectedItem = allItems[selectedIndex];
+
+    if (key === "j") {
+        moveSettingsSelection(appState, 1, terminal);
+        appState.ui.settings.isDeletingAccount = false;
+        appState.ui.settings.confirmDeleteAccount = false;
+        appState.ui.settings.isDeletingKey = false;
+        appState.ui.settings.keyToDelete = null;
+        return;
+    }
+    if (key === "k") {
+        moveSettingsSelection(appState, -1, terminal);
+        appState.ui.settings.isDeletingAccount = false;
+        appState.ui.settings.confirmDeleteAccount = false;
+        appState.ui.settings.isDeletingKey = false;
+        appState.ui.settings.keyToDelete = null;
         return;
     }
 
-    if (key.toLowerCase() === "h") {
-        const prevFiltered = getFilteredUpgrades(appState, gameState);
-        const prevUpgrade = prevFiltered[appState.ui.upgrades.selectedIndex];
-
-        appState.ui.upgradesShowMaxed = !appState.ui.upgradesShowMaxed;
-
-        const newFiltered = getFilteredUpgrades(appState, gameState);
-
-        if (prevUpgrade) {
-            const newIndex = newFiltered.findIndex(
-                (u) => u.id === prevUpgrade.id,
-            );
-            if (newIndex !== -1) {
-                appState.ui.upgrades.selectedIndex = newIndex;
+    if (appState.ui.settings.isDeletingAccount) {
+        if (key.toLowerCase() === "y") {
+            if (appState.mode === "ssh" && appState.ssh) {
+                deleteAccountData(appState.ssh.db, appState.ssh.accountId);
+                (
+                    terminal as import("../core/terminal").SshTerminal
+                ).endAndRestore(
+                    generateMessage(
+                        "success",
+                        "All your data has been deleted.",
+                    ),
+                );
+                await session.destroy();
             } else {
-                appState.ui.upgrades.selectedIndex = Math.max(
-                    0,
-                    newFiltered.length - 1, 
+                appState.ui.settings.isDeletingAccount = false;
+                appState.ui.settings.confirmDeleteAccount = false;
+            }
+        } else if (key.toLowerCase() === "n") {
+            appState.ui.settings.isDeletingAccount = false;
+            appState.ui.settings.confirmDeleteAccount = false;
+        }
+        return;
+    }
+
+    if (
+        appState.ui.settings.isDeletingKey &&
+        appState.ui.settings.keyToDelete
+    ) {
+        const keyToRemove = appState.ui.settings.keyToDelete;
+        if (key.toLowerCase() === "y") {
+            if (appState.mode === "ssh" && appState.ssh) {
+                unlinkKey(appState.ssh.db, keyToRemove);
+                appState.ui.settings.linkedKeys =
+                    appState.ui.settings.linkedKeys.filter(
+                        (k) => k !== keyToRemove,
+                    );
+
+                const newAllItems = getSettingsItems(appState);
+                let newActualIndex = selectedIndex;
+                if (newActualIndex >= newAllItems.length) {
+                    newActualIndex = newAllItems.length - 1;
+                }
+                while (
+                    newActualIndex >= 0 &&
+                    newAllItems[newActualIndex].type === "header"
+                ) {
+                    newActualIndex = Math.max(0, newActualIndex - 1);
+                }
+                appState.ui.settings.selectedIndex = newActualIndex;
+
+                if (keyToRemove === appState.ssh.accountKey) {
+                    (
+                        terminal as import("../core/terminal").SshTerminal
+                    ).endAndRestore(
+                        generateMessage(
+                            "success",
+                            "Your active key has been unlinked and your session was closed.",
+                        ),
+                    );
+                    await session.destroy();
+                }
+            }
+        }
+        appState.ui.settings.isDeletingKey = false;
+        appState.ui.settings.keyToDelete = null;
+        return;
+    }
+
+    if (!currentSelectedItem) return;
+
+    if (currentSelectedItem.type === "toggle") {
+        const currentToggleState = appState.ui.settings[currentSelectedItem.id];
+        if (key.toLowerCase() === "e" && !currentToggleState) {
+            appState.ui.settings[currentSelectedItem.id] = true;
+            if (currentSelectedItem.id === "pureBlackBackground")
+                terminal.clear(true);
+        } else if (key.toLowerCase() === "d" && currentToggleState) {
+            appState.ui.settings[currentSelectedItem.id] = false;
+            if (currentSelectedItem.id === "pureBlackBackground")
+                terminal.clear(true);
+        }
+    } else if (currentSelectedItem.type === "action") {
+        if (
+            currentSelectedItem.id === "generateToken" &&
+            key.toLowerCase() === "g" &&
+            appState.ui.settings.linkingToken === null
+        ) {
+            const now = Date.now();
+            const lastGenerated =
+                appState.ui.settings.linkingTokenGeneratedAt || 0;
+
+            if (
+                now - lastGenerated > LINKING_TOKEN_COOLDOWN_MS &&
+                appState.mode === "ssh" &&
+                appState.ssh
+            ) {
+                await generateLinkingToken(appState, appState.ssh.db);
+                logger.info(
+                    `Generated linking token for account ${appState.ssh.accountId}: ${appState.ui.settings.linkingToken}`,
                 );
             }
-        } else if (newFiltered.length > 0) {
-            appState.ui.upgrades.selectedIndex = Math.min(
-                appState.ui.upgrades.selectedIndex,
-                newFiltered.length - 1,
-            );
-        } else {
-            appState.ui.upgrades.selectedIndex = 0;
+        } else if (
+            currentSelectedItem.id === "generateToken" &&
+            appState.ui.settings.linkingToken &&
+            key.toLowerCase() === "r"
+        ) {
+            if (appState.mode === "ssh" && appState.ssh) {
+                revokeLinkingToken(appState, appState.ssh.db);
+            }
+        } else if (
+            currentSelectedItem.id === "deleteAllData" &&
+            key.toLowerCase() === "d"
+        ) {
+            appState.ui.settings.isDeletingAccount = true;
+            appState.ui.settings.confirmDeleteAccount = false;
         }
+    } else if (
+        currentSelectedItem.type === "linkedKey" &&
+        key.toLowerCase() === "r"
+    ) {
+        if (appState.mode === "ssh" && appState.ssh) {
+            const keyToRemove = currentSelectedItem.pubkey;
+            const totalLinkedKeys = appState.ui.settings.linkedKeys.length;
+            if (currentSelectedItem.isCurrentKey && totalLinkedKeys === 1) {
+                return;
+            }
 
-        ensureUpgradeVisible(appState, gameState, terminal);
-        return;
-    }
-
-    if (appState.layout === "large") {
-        handleLargeInput(appState, gameState, terminal, key);
-    } else if (appState.layout === "medium") {
-        handleMediumInput(appState, gameState, terminal, key);
-    } else {
-        handleSmallInput(appState, gameState, terminal, key);
+            appState.ui.settings.isDeletingKey = true;
+            appState.ui.settings.keyToDelete = keyToRemove;
+        }
     }
 }
 
@@ -158,17 +340,34 @@ function handleLargeInput(
         u: () => {
             appState.ui.focus = "upgrades";
         },
+        s: () => {
+            appState.screen = "settings";
+            appState.ui.lastFocusBeforeSettings = appState.ui.focus;
+            appState.ui.focus = "settings";
+            appState.ui.settings.selectedIndex = 0;
+            appState.ui.settings.isDeletingAccount = false;
+            appState.ui.settings.confirmDeleteAccount = false;
+            appState.ui.settings.isDeletingKey = false;
+            appState.ui.settings.keyToDelete = null;
+            terminal.clear(true);
+        },
         j: () => {
-            if (appState.ui.focus === "workers")
+            if (appState.ui.focus === "workers") {
                 moveWorkerSelection(appState, terminal, 1);
-            if (appState.ui.focus === "upgrades")
+            } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, 1, gameState);
+            } else if (appState.ui.focus === "main") {
+                appState.ui.focus = "workers";
+            }
         },
         k: () => {
-            if (appState.ui.focus === "workers")
+            if (appState.ui.focus === "workers") {
                 moveWorkerSelection(appState, terminal, -1);
-            if (appState.ui.focus === "upgrades")
+            } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, -1, gameState);
+            } else if (appState.ui.focus === "main") {
+                appState.ui.focus = "workers";
+            }
         },
         b: () => {
             if (appState.ui.focus === "workers") {
@@ -181,7 +380,11 @@ function handleLargeInput(
             }
         },
     };
-    if (map[key]) map[key]();
+    if (key.toLowerCase() === "h") {
+        toggleUpgradesShowMaxed(appState, gameState, terminal);
+    } else if (map[key]) {
+        map[key]();
+    }
 }
 
 function handleMediumInput(
@@ -190,40 +393,64 @@ function handleMediumInput(
     terminal: ITerminal,
     key: string,
 ) {
-    const map: Record<string, () => void> = {
-        " ": () => clickCookie(appState, gameState, terminal),
-        w: () => {
-            appState.screen = "workers";
-            appState.ui.focus = "workers";
-        },
-        u: () => {
-            appState.screen = "upgrades";
-            appState.ui.focus = "upgrades";
-        },
-        j: () => {
-            if (appState.ui.focus === "workers")
-                moveWorkerSelection(appState, terminal, 1);
-            if (appState.ui.focus === "upgrades")
-                moveUpgradeSelection(appState, terminal, 1, gameState);
-        },
-        k: () => {
-            if (appState.ui.focus === "workers")
-                moveWorkerSelection(appState, terminal, -1);
-            if (appState.ui.focus === "upgrades")
-                moveUpgradeSelection(appState, terminal, -1, gameState);
-        },
-        b: () => {
-            if (appState.ui.focus === "workers") {
-                const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
-                if (worker) buyWorker(worker.id, gameState);
-            } else if (appState.ui.focus === "upgrades") {
-                const filtered = getFilteredUpgrades(appState, gameState);
-                const upgrade = filtered[appState.ui.upgrades.selectedIndex];
-                if (upgrade) buyUpgrade(upgrade.id, gameState);
-            }
-        },
-    };
-    if (map[key]) map[key]();
+    if (appState.screen === "main") {
+        const map: Record<string, () => void> = {
+            " ": () => clickCookie(appState, gameState, terminal),
+            w: () => {
+                appState.ui.focus = "workers";
+            },
+            u: () => {
+                appState.ui.focus = "upgrades";
+            },
+            s: () => {
+                appState.screen = "settings";
+                appState.ui.lastFocusBeforeSettings = appState.ui.focus;
+                appState.ui.focus = "settings";
+                appState.ui.settings.selectedIndex = 0;
+                appState.ui.settings.isDeletingAccount = false;
+                appState.ui.settings.confirmDeleteAccount = false;
+                appState.ui.settings.isDeletingKey = false;
+                appState.ui.settings.keyToDelete = null;
+                terminal.clear(true);
+            },
+            j: () => {
+                if (appState.ui.focus === "workers") {
+                    moveWorkerSelection(appState, terminal, 1);
+                } else if (appState.ui.focus === "upgrades") {
+                    moveUpgradeSelection(appState, terminal, 1, gameState);
+                } else if (appState.ui.focus === "main") {
+                    appState.ui.focus = "workers";
+                }
+            },
+            k: () => {
+                if (appState.ui.focus === "workers") {
+                    moveWorkerSelection(appState, terminal, -1);
+                } else if (appState.ui.focus === "upgrades") {
+                    moveUpgradeSelection(appState, terminal, -1, gameState);
+                } else if (appState.ui.focus === "main") {
+                    appState.ui.focus = "workers";
+                }
+            },
+            b: () => {
+                if (appState.ui.focus === "workers") {
+                    const worker =
+                        WORKER_DATA[appState.ui.workers.selectedIndex];
+                    if (worker) buyWorker(worker.id, gameState);
+                } else if (appState.ui.focus === "upgrades") {
+                    const filtered = getFilteredUpgrades(appState, gameState);
+                    const upgrade =
+                        filtered[appState.ui.upgrades.selectedIndex];
+                    if (upgrade) buyUpgrade(upgrade.id, gameState);
+                }
+            },
+            h: () => {
+                if (appState.ui.focus === "upgrades") {
+                    toggleUpgradesShowMaxed(appState, gameState, terminal);
+                }
+            },
+        };
+        if (map[key]) map[key]();
+    }
 }
 
 function handleSmallInput(
@@ -238,38 +465,25 @@ function handleSmallInput(
             w: () => {
                 appState.screen = "workers";
                 appState.ui.focus = "workers";
+                terminal.clear(true);
             },
             u: () => {
                 appState.screen = "upgrades";
                 appState.ui.focus = "upgrades";
+                terminal.clear(true);
+            },
+            s: () => {
+                appState.screen = "settings";
+                appState.ui.lastFocusBeforeSettings = appState.ui.focus;
+                appState.ui.focus = "settings";
+                appState.ui.settings.selectedIndex = 0;
+                appState.ui.settings.isDeletingAccount = false;
+                appState.ui.settings.confirmDeleteAccount = false;
+                appState.ui.settings.isDeletingKey = false;
+                appState.ui.settings.keyToDelete = null;
+                terminal.clear(true);
             },
         };
         if (map[key]) map[key]();
-    } else if (appState.screen === "workers") {
-        if (key === "\b" || key === "\x7f") {
-            appState.screen = "main";
-            appState.ui.focus = "main";
-            return;
-        }
-        if (key === "j") moveWorkerSelection(appState, terminal, 1);
-        if (key === "k") moveWorkerSelection(appState, terminal, -1);
-        if (key === "b") {
-            const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
-            if (worker) buyWorker(worker.id, gameState);
-        }
-    } else if (appState.screen === "upgrades") {
-        if (key === "\b" || key === "\x7f") {
-            appState.screen = "main";
-            appState.ui.focus = "main";
-            return;
-        }
-        if (key === "j") moveUpgradeSelection(appState, terminal, 1, gameState);
-        if (key === "k")
-            moveUpgradeSelection(appState, terminal, -1, gameState);
-        if (key === "b") {
-            const filtered = getFilteredUpgrades(appState, gameState);
-            const upgrade = filtered[appState.ui.upgrades.selectedIndex];
-            if (upgrade) buyUpgrade(upgrade.id, gameState);
-        }
     }
 }

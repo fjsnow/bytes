@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import type { ITerminal } from "../core/terminal";
 import { createInitialGameState, type AppState, type GameState } from "./state";
 import { initSaveSystem, type SaveSystemInstance } from "../core/save";
@@ -8,69 +9,47 @@ import { drawCookie } from "./ui/cookie";
 import { drawStats } from "./ui/stats";
 import { drawUpgrades } from "./ui/upgrades";
 import { drawWorkers } from "./ui/workers";
+import { drawSettings } from "./ui/settings";
 import { recalcCps } from "./systems";
-import { UPGRADE_DATA } from "./data/upgrades";
-import chalk from "chalk";
 import { drawWatermark } from "./ui/watermark";
 import { logger, redactPlayerKey } from "../utils/logger";
-import {
-    handleGameInput,
-    getFilteredUpgrades,
-    ensureUpgradeVisible,
-} from "./input";
+import { handleGameInput } from "./input";
 
 export class GameSession {
-    public id: string;
     public terminal: ITerminal;
     public appState: AppState;
     public gameState: GameState;
-    public playerKey: string | null;
-    public username: string | null;
     private saveSystem: SaveSystemInstance | null = null;
 
-    constructor(
-        id: string,
-        terminal: ITerminal,
-        playerKey: string | null,
-        appState: AppState,
-        username: string | null = null,
-    ) {
-        this.id = id;
+    constructor(terminal: ITerminal, appState: AppState) {
         this.terminal = terminal;
-        this.gameState = createInitialGameState();
-        this.playerKey = playerKey;
         this.appState = appState;
-        this.username = username;
+        this.gameState = createInitialGameState();
     }
 
-    public init(sharedDb?: any) {
+    public init() {
         this.terminal.setup();
 
         try {
             const saveSystemResult = initSaveSystem(
-                this.playerKey,
+                this.appState,
                 this.gameState,
-                sharedDb,
             );
             if (!saveSystemResult) {
-                if (!this.playerKey) {
-                    process.exit(1);
-                }
-                return false;
+                process.exit(1);
             }
             this.saveSystem = saveSystemResult;
         } catch (e: any) {
             console.error(e.message);
-            if (!this.playerKey) {
-                process.exit(1);
-            }
-            return false;
+            process.exit(1);
+        }
+
+        if (this.appState.ui.settings.pureBlackBackground) {
+            this.terminal.clear(true);
         }
 
         this.terminal.onKey((key: string) => this.handleKey(key));
-
         recalcCps(this.gameState);
-
         return true;
     }
 
@@ -89,103 +68,118 @@ export class GameSession {
 
     public render() {
         this.terminal.clear();
-
-        if (this.appState.layout === "large") {
-            this.renderLarge();
-        } else if (this.appState.layout === "medium") {
-            this.renderMedium();
-        } else {
-            this.renderSmall();
-        }
-
-        this.terminal.render();
-    }
-
-    private renderLarge() {
         drawBits(this.appState, this.terminal);
-        drawCookie(this.appState, this.terminal);
-        drawStats(this.appState, this.gameState, this.terminal);
-        drawWorkers(this.appState, this.gameState, this.terminal);
-        drawUpgrades(this.appState, this.gameState, this.terminal);
-        drawWatermark(this.terminal);
-    }
 
-    private renderMedium() {
-        drawBits(this.appState, this.terminal);
         this.drawNavBar();
-        drawCookie(this.appState, this.terminal);
-        drawStats(this.appState, this.gameState, this.terminal);
-        if (this.appState.screen === "workers") {
-            drawWorkers(this.appState, this.gameState, this.terminal);
-        } else if (this.appState.screen === "upgrades") {
-            drawUpgrades(this.appState, this.gameState, this.terminal);
-        }
         drawWatermark(this.terminal);
-    }
 
-    private renderSmall() {
-        drawBits(this.appState, this.terminal);
-        this.drawNavBar();
         if (this.appState.screen === "main") {
-            drawCookie(this.appState, this.terminal);
-            drawStats(this.appState, this.gameState, this.terminal);
+            if (this.appState.layout === "large") {
+                this.renderLargeMain();
+            } else if (this.appState.layout === "medium") {
+                this.renderMediumMain();
+            } else {
+                this.renderSmallMain();
+            }
+        } else if (this.appState.screen === "settings") {
+            drawSettings(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "workers") {
             drawWorkers(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "upgrades") {
             drawUpgrades(this.appState, this.gameState, this.terminal);
         }
-        drawWatermark(this.terminal);
+
+        this.terminal.render();
+    }
+
+    private renderLargeMain() {
+        drawCookie(this.appState, this.terminal);
+        drawStats(this.appState, this.gameState, this.terminal);
+        drawWorkers(this.appState, this.gameState, this.terminal);
+        drawUpgrades(this.appState, this.gameState, this.terminal);
+    }
+
+    private renderMediumMain() {
+        drawCookie(this.appState, this.terminal);
+        drawStats(this.appState, this.gameState, this.terminal);
+        if (this.appState.ui.focus === "workers") {
+            drawWorkers(this.appState, this.gameState, this.terminal);
+        } else if (this.appState.ui.focus === "upgrades") {
+            drawUpgrades(this.appState, this.gameState, this.terminal);
+        }
+    }
+
+    private renderSmallMain() {
+        drawCookie(this.appState, this.terminal);
+        drawStats(this.appState, this.gameState, this.terminal);
     }
 
     private drawNavBar() {
-        if (this.appState.layout === "medium") {
-            const workersText = "[W]orkers ";
-            const upgradesText = "[U]pgrades";
-            const totalLength = workersText.length + upgradesText.length;
+        const { width } = this.terminal.getSize();
+        const settingsText = "[S]ettings";
+
+        if (this.appState.screen !== "main") {
+            const backText = "[backspace] to return";
+            const { x } = this.terminal.getCenterForSize(backText.length, 0);
+            this.terminal.draw(x, 0, backText, chalk.gray);
+            return;
+        }
+
+        if (this.appState.layout === "large") {
             const { x: startX } = this.terminal.getCenterForSize(
-                totalLength,
+                settingsText.length,
+                0,
+            );
+            this.terminal.draw(startX, 0, settingsText, chalk.gray);
+        } else if (this.appState.layout === "medium") {
+            const workersText = "[W]orkers";
+            const upgradesText = "[U]pgrades";
+            const totalLength =
+                workersText.length + upgradesText.length + settingsText.length;
+            const { x: startX } = this.terminal.getCenterForSize(
+                totalLength + 6,
                 0,
             );
 
+            let currentX = startX;
+
             this.terminal.draw(
-                startX,
+                currentX,
                 0,
                 workersText,
-                this.appState.screen === "workers"
+                this.appState.ui.focus === "workers"
                     ? chalk.yellow.bold
                     : chalk.gray,
             );
+            currentX += workersText.length + 3;
 
             this.terminal.draw(
-                startX + workersText.length,
+                currentX,
                 0,
                 upgradesText,
-                this.appState.screen === "upgrades"
+                this.appState.ui.focus === "upgrades"
                     ? chalk.blue.bold
                     : chalk.gray,
             );
+            currentX += upgradesText.length + 3;
+
+            this.terminal.draw(currentX, 0, settingsText, chalk.gray);
         } else if (this.appState.layout === "small") {
-            if (this.appState.screen === "main") {
-                const text = "[W]orkers  [U]pgrades";
-                const { x } = this.terminal.getCenterForSize(text.length, 0);
-                this.terminal.draw(x, 0, text, chalk.gray);
-            } else {
-                const text = "[backspace] to return";
-                const { x } = this.terminal.getCenterForSize(text.length, 0);
-                this.terminal.draw(x, 0, text, chalk.gray);
-            }
+            const text = "[W]orkers  [U]pgrades  [S]ettings";
+            const { x } = this.terminal.getCenterForSize(text.length, 0);
+            this.terminal.draw(x, 0, text, chalk.gray);
         }
     }
 
     public handleKey(key: string) {
-        handleGameInput(this.appState, this.gameState, this.terminal, key);
+        handleGameInput(this, key);
     }
 
     public async destroy() {
         this.saveSystem?.saveGame();
-        if (this.playerKey) {
+        if (this.appState.mode === "ssh") {
             logger.info(
-                `Saving game data on disconnect for player ${redactPlayerKey(this.playerKey)} (${this.username || "N/A"})`,
+                `Disconnected from account ${this.appState.ssh!.accountId}`,
             );
         }
         this.saveSystem?.releaseLock();

@@ -77,7 +77,10 @@ export const logger = {
     error: (...messages: any[]) => writeToStreams("ERROR", ...messages),
 };
 
-export function redactPlayerKey(playerKey: string | null | undefined): string {
+export function redactPlayerKey(
+    playerKey: string | null | undefined,
+    size: number = 8,
+): string {
     if (!playerKey) {
         return "N/A";
     }
@@ -89,11 +92,11 @@ export function redactPlayerKey(playerKey: string | null | undefined): string {
 
     const data = parts[1];
 
-    if (data.length <= 16) {
+    if (data.length <= size * 2) {
         return data;
     }
 
-    return `${data.slice(0, 8)}...${data.slice(-8)}`;
+    return `${data.slice(0, size)}...${data.slice(-size)}`;
 }
 
 export function startFileLogging() {

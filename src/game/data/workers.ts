@@ -1,106 +1,99 @@
 export interface Worker {
     id: string;
     name: string;
-    cost: (owned: number) => number;
-    baseCookiesPerSecond: number;
+    cost: (owned: number) => bigint;
+    baseCookiesPerSecond: bigint;
+}
+
+function bigintGeometricCost(
+    initialCost: bigint,
+    multiplier: bigint,
+    divisor: bigint,
+    owned: number,
+): bigint {
+    let cost = initialCost;
+    for (let i = 0; i < owned; i++)
+        cost = (cost * multiplier + divisor - 1n) / divisor;
+
+    return cost;
 }
 
 export const WORKER_DATA: Worker[] = [
     {
         id: "intern",
         name: "Intern",
-        cost: (owned) => {
-            return Math.floor(10 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 1,
+        cost: (owned) => bigintGeometricCost(10n, 115n, 100n, owned),
+        baseCookiesPerSecond: 1n,
     },
     {
         id: "junior_dev",
         name: "Junior Developer",
-        cost: (owned) => {
-            return Math.floor(1024 ** 1 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 16,
+        cost: (owned) => bigintGeometricCost(1024n, 115n, 100n, owned),
+        baseCookiesPerSecond: 16n,
     },
     {
         id: "senior_dev",
         name: "Senior Developer",
-        cost: (owned) => {
-            return Math.floor(32 * 1024 ** 1 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 256,
+        cost: (owned) => bigintGeometricCost(32n * 1024n, 115n, 100n, owned),
+        baseCookiesPerSecond: 256n,
     },
     {
         id: "tech_lead",
         name: "Tech Lead",
-        cost: (owned) => {
-            return Math.floor(1024 ** 2 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 4 * 1024 ** 1,
+        cost: (owned) => bigintGeometricCost(1024n ** 2n, 115n, 100n, owned),
+        baseCookiesPerSecond: 4n * 1024n,
     },
     {
         id: "engineering_manager",
         name: "Engineering Manager",
-        cost: (owned) => {
-            return Math.floor(32 * 1024 ** 2 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 64 * 1024 ** 1,
+        cost: (owned) =>
+            bigintGeometricCost(32n * 1024n ** 2n, 115n, 100n, owned),
+        baseCookiesPerSecond: 64n * 1024n,
     },
     {
         id: "director",
         name: "Director of Engineering",
-        cost: (owned) => {
-            return Math.floor(1024 ** 3 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 1024 ** 2,
+        cost: (owned) => bigintGeometricCost(1024n ** 3n, 115n, 100n, owned),
+        baseCookiesPerSecond: 1024n ** 2n,
     },
     {
         id: "vp_engineering",
         name: "VP of Engineering",
-        cost: (owned) => {
-            return Math.floor(32 * 1024 ** 3 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 16 * 1024 ** 2,
+        cost: (owned) =>
+            bigintGeometricCost(32n * 1024n ** 3n, 115n, 100n, owned),
+        baseCookiesPerSecond: 16n * 1024n ** 2n,
     },
     {
         id: "cto",
         name: "Chief Technology Officer",
-        cost: (owned) => {
-            return Math.floor(1024 ** 4 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 256 * 1024 ** 2,
+        cost: (owned) => bigintGeometricCost(1024n ** 4n, 115n, 100n, owned),
+        baseCookiesPerSecond: 256n * 1024n ** 2n,
     },
     {
         id: "ceo",
         name: "Chief Executive Officer",
-        cost: (owned) => {
-            return Math.floor(32 * 1024 ** 4 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 4 * 1024 ** 3,
+        cost: (owned) =>
+            bigintGeometricCost(32n * 1024n ** 4n, 115n, 100n, owned),
+        baseCookiesPerSecond: 4n * 1024n ** 3n,
     },
     {
         id: "board_member",
         name: "Board Member",
-        cost: (owned) => {
-            return Math.floor(1024 ** 5 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 64 * 1024 ** 3,
+        cost: (owned) => bigintGeometricCost(1024n ** 5n, 115n, 100n, owned),
+        baseCookiesPerSecond: 64n * 1024n ** 3n,
     },
     {
         id: "chairman",
         name: "Chairman",
-        cost: (owned) => {
-            return Math.floor(32 * 1024 ** 5 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 1024 ** 4,
+        cost: (owned) =>
+            bigintGeometricCost(32n * 1024n ** 5n, 115n, 100n, owned),
+        baseCookiesPerSecond: 1024n ** 4n,
     },
     {
         id: "conglomerate_owner",
         name: "Conglomerate Owner",
-        cost: (owned) => {
-            return Math.floor(1024 ** 6 * Math.pow(1.15, owned));
-        },
-        baseCookiesPerSecond: 16 * 1024 ** 4,
+        cost: (owned) => bigintGeometricCost(1024n ** 6n, 115n, 100n, owned),
+        baseCookiesPerSecond: 16n * 1024n ** 4n,
     },
 ];
 

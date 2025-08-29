@@ -4,16 +4,18 @@ import { UPGRADE_DATA } from "./data/upgrades";
 import type { ITerminal } from "../core/terminal";
 
 export function recalcCps(gameState: GameState) {
-    let total = 0;
+    let total = 0n;
 
     for (const worker of WORKER_DATA) {
         const count = gameState.workers[worker.id] || 0;
-        total += count * worker.baseCookiesPerSecond;
+        total += BigInt(count) * worker.baseCookiesPerSecond;
     }
 
     for (const upgrade of UPGRADE_DATA) {
         const owned = gameState.upgrades[upgrade.id] || 0;
         if (!owned) continue;
+
+        const ownedBigInt = BigInt(owned);
 
         switch (upgrade.id) {
             case "mechanical_keyboards":
@@ -21,63 +23,62 @@ export function recalcCps(gameState: GameState) {
             case "ergonomic_mice":
                 break;
             case "free_pizza":
-                const interns = gameState.workers["intern"] || 0;
-                total += interns * 1 * gameState.upgrades[upgrade.id];
+                total += BigInt(gameState.workers["intern"] || 0) * ownedBigInt;
                 break;
 
             case "pair_programming":
-                const juniors = gameState.workers["junior_dev"] || 0;
-                total += juniors * 16 * gameState.upgrades[upgrade.id];
+                total +=
+                    BigInt(gameState.workers["junior_dev"] || 0) * ownedBigInt;
                 break;
 
             case "agile_methodology":
-                const seniors = gameState.workers["senior_dev"] || 0;
-                const leads = gameState.workers["tech_lead"] || 0;
-                total += seniors * 256 * gameState.upgrades[upgrade.id];
-                total += leads * 4 * 1024 ** 1 * gameState.upgrades[upgrade.id];
+                total +=
+                    (BigInt(gameState.workers["senior_dev"] || 0) +
+                        BigInt(gameState.workers["tech_lead"] || 0)) *
+                    ownedBigInt;
                 break;
 
             case "scrum_masters":
-                const mgrs = gameState.workers["engineering_manager"] || 0;
-                total += mgrs * 64 * 1024 ** 1 * gameState.upgrades[upgrade.id];
+                total +=
+                    BigInt(gameState.workers["engineering_manager"] || 0) *
+                    ownedBigInt;
                 break;
 
             case "corporate_synergy":
-                const dirs = gameState.workers["director"] || 0;
-                const vps = gameState.workers["vp_engineering"] || 0;
-                total += dirs * 1024 ** 2 * gameState.upgrades[upgrade.id];
-                total += vps * 16 * 1024 ** 2 * gameState.upgrades[upgrade.id];
+                total +=
+                    (BigInt(gameState.workers["director"] || 0) +
+                        BigInt(gameState.workers["vp_engineering"] || 0)) *
+                    ownedBigInt;
                 break;
 
             case "executive_retreats":
-                const cto = gameState.workers["cto"] || 0;
-                const ceo = gameState.workers["ceo"] || 0;
-                total += cto * 256 * 1024 ** 2 * gameState.upgrades[upgrade.id];
-                total += ceo * 4 * 1024 ** 3 * gameState.upgrades[upgrade.id];
+                total +=
+                    (BigInt(gameState.workers["cto"] || 0) +
+                        BigInt(gameState.workers["ceo"] || 0)) *
+                    ownedBigInt;
                 break;
 
             case "golden_parachutes":
-                const board = gameState.workers["board_member"] || 0;
-                const chair = gameState.workers["chairman"] || 0;
                 total +=
-                    board * 64 * 1024 ** 3 * gameState.upgrades[upgrade.id];
-                total += chair * 1024 ** 4 * gameState.upgrades[upgrade.id];
+                    (BigInt(gameState.workers["board_member"] || 0) +
+                        BigInt(gameState.workers["chairman"] || 0)) *
+                    ownedBigInt;
                 break;
 
             case "global_monopoly":
-                const conglom = gameState.workers["conglomerate_owner"] || 0;
                 total +=
-                    conglom * 16 * 1024 ** 4 * gameState.upgrades[upgrade.id];
+                    BigInt(gameState.workers["conglomerate_owner"] || 0) *
+                    ownedBigInt;
                 break;
 
             case "cloud_infrastructure":
-                total *= 1 + 0.25 * owned;
+                total = total * (1n + (1n / 4n) * ownedBigInt);
                 break;
             case "ai_automation":
-                total *= 1 + 0.5 * owned;
+                total = total * (1n + (1n / 2n) * ownedBigInt);
                 break;
             case "quantum_efficiency":
-                total *= 2 ** owned;
+                total = total * 2n ** ownedBigInt;
                 break;
         }
     }
@@ -103,22 +104,24 @@ export function clickCookie(
     }
     appState.ui.lastClickTime = Date.now();
 
-    let clickGain = 1;
+    let clickGain = 1n;
 
-    if (gameState.upgrades["mechanical_keyboards"]) {
-        clickGain += gameState.upgrades["mechanical_keyboards"];
+    if (gameState.upgrades["mechanical_keyboards"] > 0) {
+        clickGain += BigInt(gameState.upgrades["mechanical_keyboards"]);
     }
 
     gameState.cookies += clickGain;
     appState.ui.highlightTicks = 10;
 
-    const { width, height } = terminal.getSize();
-    appState.ui.fallingBits.push({
-        x: Math.floor(Math.random() * (width - 2)) + 1,
-        y: Math.floor(Math.random() * (height + 30)) - 15,
-        one: Math.random() < 0.5,
-        aliveTicks: 10,
-    });
+    if (!appState.ui.settings.reduceFallingBits || Math.random() < 0.5) {
+        const { width, height } = terminal.getSize();
+        appState.ui.fallingBits.push({
+            x: Math.floor(Math.random() * (width - 2)) + 1,
+            y: Math.floor(Math.random() * (height + 30)) - 15,
+            one: Math.random() < 0.5,
+            aliveTicks: 10,
+        });
+    }
 }
 
 export function buyWorker(id: string, gameState: GameState) {

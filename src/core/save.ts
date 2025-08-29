@@ -1,10 +1,10 @@
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
-import { Database } from "bun:sqlite";
-import type { GameState } from "../game/state";
+import type { GameState, AppState } from "../game/state";
+import { logger } from "../utils/logger";
+import { createInitialGameState } from "../game/state";
 
 const SAVE_FILE = "save.json";
 const LOCK_FILE = "save.json.lock";
-const DB_FILE = "saves.db";
 
 export interface SaveSystemInstance {
     saveGame(): void;
@@ -12,16 +12,14 @@ export interface SaveSystemInstance {
 }
 
 export function initSaveSystem(
-    playerKey: string | null,
+    appState: AppState,
     gameState: GameState,
-    sharedDb: Database | null = null,
 ): SaveSystemInstance | null {
-    let db: Database | null = sharedDb;
     let hasLock = false;
 
     const cleanupLock = () => {
         if (!hasLock) return;
-        if (!playerKey && existsSync(LOCK_FILE)) {
+        if (appState.mode === "standalone" && existsSync(LOCK_FILE)) {
             try {
                 unlinkSync(LOCK_FILE);
             } catch {}
@@ -29,31 +27,65 @@ export function initSaveSystem(
         hasLock = false;
     };
 
-    if (playerKey) {
-        if (!db) {
-            db = new Database(DB_FILE);
-            db.run("PRAGMA journal_mode = WAL;");
-            db.run("PRAGMA synchronous = NORMAL;");
+    if (appState.mode === "ssh") {
+        const ssh = appState.ssh!;
+        const db = ssh.db;
+        const accountId = ssh.accountId;
+        const isNewAccount = ssh.isNewAccount;
 
-            db.run(`
-                CREATE TABLE IF NOT EXISTS saves (
-                    pubkey TEXT PRIMARY KEY,
-                    data TEXT NOT NULL
-                )
-            `);
+        let accountDataRow = db
+            .query("SELECT data FROM accounts WHERE id = ?")
+            .get(accountId) as { data: string } | undefined;
+
+        if (isNewAccount || !accountDataRow) {
+            logger.info(
+                `Initializing or re-initializing account data for new/missing account ${accountId}.`,
+            );
+            const initialData = {
+                gameState: {
+                    cookies: createInitialGameState().cookies.toString(),
+                    cps: createInitialGameState().cps.toString(),
+                    workers: createInitialGameState().workers,
+                    upgrades: createInitialGameState().upgrades,
+                    prestige: createInitialGameState().prestige,
+                },
+                appSettings: {
+                    ui: {
+                        settings: {
+                            pureBlackBackground:
+                                appState.ui.settings.pureBlackBackground,
+                            reduceFallingBits:
+                                appState.ui.settings.reduceFallingBits,
+                        },
+                    },
+                },
+            };
+            db.run("INSERT OR REPLACE INTO accounts (id, data) VALUES (?, ?)", [
+                accountId,
+                JSON.stringify(initialData),
+            ]);
+            accountDataRow = { data: JSON.stringify(initialData) };
         }
 
-        const row = db
-            .query("SELECT data FROM saves WHERE pubkey = ?")
-            .get(playerKey);
+        try {
+            const parsedData = JSON.parse(accountDataRow.data);
+            gameState.cookies = BigInt(parsedData.gameState.cookies);
+            gameState.cps = BigInt(parsedData.gameState.cps);
+            Object.assign(gameState.workers, parsedData.gameState.workers);
+            Object.assign(gameState.upgrades, parsedData.gameState.upgrades);
+            gameState.prestige = parsedData.gameState.prestige;
 
-        if (row) {
-            try {
-                const parsed = JSON.parse((row as any).data);
-                Object.assign(gameState, parsed);
-            } catch (e) {
-                console.error("Failed to parse save for", playerKey, e);
+            if (parsedData.appSettings?.ui?.settings) {
+                appState.ui.settings.pureBlackBackground =
+                    parsedData.appSettings.ui.settings.pureBlackBackground ??
+                    false;
+                appState.ui.settings.reduceFallingBits =
+                    parsedData.appSettings.ui.settings.reduceFallingBits ??
+                    false;
             }
+            logger.info(`Loaded game state for account ${accountId}.`);
+        } catch (e) {
+            logger.error(`Failed to parse save for account ${accountId}`, e);
         }
         hasLock = true;
     } else {
@@ -76,13 +108,27 @@ export function initSaveSystem(
                 }
             }
         }
+
         writeFileSync(LOCK_FILE, String(process.pid));
         hasLock = true;
 
         if (existsSync(SAVE_FILE)) {
             try {
                 const parsed = JSON.parse(readFileSync(SAVE_FILE, "utf8"));
-                Object.assign(gameState, parsed);
+                gameState.cookies = BigInt(parsed.gameState.cookies);
+                gameState.cps = BigInt(parsed.gameState.cps);
+                Object.assign(gameState.workers, parsed.gameState.workers);
+                Object.assign(gameState.upgrades, parsed.gameState.upgrades);
+                gameState.prestige = parsed.gameState.prestige;
+
+                if (parsed.appSettings?.ui?.settings) {
+                    appState.ui.settings.pureBlackBackground =
+                        parsed.appSettings.ui.settings.pureBlackBackground ??
+                        false;
+                    appState.ui.settings.reduceFallingBits =
+                        parsed.appSettings.ui.settings.reduceFallingBits ??
+                        false;
+                }
             } catch (e) {
                 console.error("Failed to parse local save", e);
             }
@@ -92,13 +138,38 @@ export function initSaveSystem(
     const saveGame = () => {
         if (!hasLock) return;
 
-        if (playerKey && db) {
-            db.run(
-                "INSERT OR REPLACE INTO saves (pubkey, data) VALUES (?, ?)",
-                [playerKey, JSON.stringify(gameState)],
+        const dataToSave = {
+            gameState: {
+                cookies: gameState.cookies.toString(),
+                cps: gameState.cps.toString(),
+                workers: gameState.workers,
+                upgrades: gameState.upgrades,
+                prestige: gameState.prestige,
+            },
+            appSettings: {
+                ui: {
+                    settings: {
+                        pureBlackBackground:
+                            appState.ui.settings.pureBlackBackground,
+                        reduceFallingBits:
+                            appState.ui.settings.reduceFallingBits,
+                    },
+                },
+            },
+        };
+
+        if (appState.mode === "ssh") {
+            logger.info(
+                "Saving game state to database for accountId: " +
+                    appState.ssh!.accountId,
             );
-        } else if (!playerKey) {
-            writeFileSync(SAVE_FILE, JSON.stringify(gameState, null, 2));
+            const ssh = appState.ssh!;
+            ssh!.db.run("UPDATE accounts SET data = ? WHERE id = ?", [
+                JSON.stringify(dataToSave),
+                ssh.accountId,
+            ]);
+        } else {
+            writeFileSync(SAVE_FILE, JSON.stringify(dataToSave, null, 2));
         }
     };
 

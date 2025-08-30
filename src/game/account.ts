@@ -25,7 +25,7 @@ export function getOrCreateAccountId(
         );
     } else {
         const insertAccount = db.run(
-            "INSERT INTO accounts (data) VALUES ('{}')",
+            "INSERT INTO accounts (progress, settings) VALUES ('{}', '{}')",
         );
         accountId = Number(insertAccount.lastInsertRowid);
         isNewAccount = true;

@@ -34,60 +34,55 @@ export function initSaveSystem(
         const isNewAccount = ssh.isNewAccount;
 
         let accountDataRow = db
-            .query("SELECT data FROM accounts WHERE id = ?")
-            .get(accountId) as { data: string } | undefined;
+            .query("SELECT progress, settings FROM accounts WHERE id = ?")
+            .get(accountId) as
+            | { progress: string; settings: string }
+            | undefined;
 
         if (isNewAccount || !accountDataRow) {
             logger.info(
                 `Initializing or re-initializing account data for new/missing account ${accountId}.`,
             );
-            const initialData = {
-                gameState: {
-                    cookies: createInitialGameState().cookies.toString(),
-                    cps: createInitialGameState().cps.toString(),
-                    workers: createInitialGameState().workers,
-                    upgrades: createInitialGameState().upgrades,
-                    prestige: createInitialGameState().prestige,
-                },
-                appSettings: {
-                    ui: {
-                        settings: {
-                            pureBlackBackground:
-                                appState.ui.settings.pureBlackBackground,
-                            reduceFallingBits:
-                                appState.ui.settings.reduceFallingBits,
-                            disableFallingBits:
-                                appState.ui.settings.disableFallingBits,
-                        },
-                    },
-                },
+            const initialProgress = JSON.stringify({
+                cookies: createInitialGameState().cookies.toString(),
+                cps: createInitialGameState().cps.toString(),
+                workers: createInitialGameState().workers,
+                upgrades: createInitialGameState().upgrades,
+                prestige: createInitialGameState().prestige,
+            });
+            const initialSettings = JSON.stringify({
+                pureBlackBackground: appState.ui.settings.pureBlackBackground,
+                reduceFallingBits: appState.ui.settings.reduceFallingBits,
+                disableFallingBits: appState.ui.settings.disableFallingBits,
+            });
+
+            db.run(
+                "INSERT OR REPLACE INTO accounts (id, progress, settings) VALUES (?, ?, ?)",
+                [accountId, initialProgress, initialSettings],
+            );
+            accountDataRow = {
+                progress: initialProgress,
+                settings: initialSettings,
             };
-            db.run("INSERT OR REPLACE INTO accounts (id, data) VALUES (?, ?)", [
-                accountId,
-                JSON.stringify(initialData),
-            ]);
-            accountDataRow = { data: JSON.stringify(initialData) };
         }
 
         try {
-            const parsedData = JSON.parse(accountDataRow.data);
-            gameState.cookies = BigInt(parsedData.gameState.cookies);
-            gameState.cps = BigInt(parsedData.gameState.cps);
-            Object.assign(gameState.workers, parsedData.gameState.workers);
-            Object.assign(gameState.upgrades, parsedData.gameState.upgrades);
-            gameState.prestige = parsedData.gameState.prestige;
+            const parsedProgress = JSON.parse(accountDataRow.progress);
+            gameState.cookies = BigInt(parsedProgress.cookies);
+            gameState.cps = BigInt(parsedProgress.cps);
+            Object.assign(gameState.workers, parsedProgress.workers);
+            Object.assign(gameState.upgrades, parsedProgress.upgrades);
+            gameState.prestige = parsedProgress.prestige;
 
-            if (parsedData.appSettings?.ui?.settings) {
+            const parsedSettings = JSON.parse(accountDataRow.settings);
+            if (parsedSettings) {
                 appState.ui.settings.pureBlackBackground =
-                    parsedData.appSettings.ui.settings.pureBlackBackground ??
-                    false;
+                    parsedSettings.pureBlackBackground ?? false;
                 appState.ui.settings.reduceFallingBits =
-                    parsedData.appSettings.ui.settings.reduceFallingBits ??
-                    false;
+                    parsedSettings.reduceFallingBits ?? false;
 
                 appState.ui.settings.disableFallingBits =
-                    parsedData.appSettings.ui.settings.disableFallingBits ??
-                    false;
+                    parsedSettings.disableFallingBits ?? false;
             }
             logger.info(`Loaded game state for account ${accountId}.`);
         } catch (e) {
@@ -121,22 +116,19 @@ export function initSaveSystem(
         if (existsSync(SAVE_FILE)) {
             try {
                 const parsed = JSON.parse(readFileSync(SAVE_FILE, "utf8"));
-                gameState.cookies = BigInt(parsed.gameState.cookies);
-                gameState.cps = BigInt(parsed.gameState.cps);
-                Object.assign(gameState.workers, parsed.gameState.workers);
-                Object.assign(gameState.upgrades, parsed.gameState.upgrades);
-                gameState.prestige = parsed.gameState.prestige;
+                gameState.cookies = BigInt(parsed.progress.cookies);
+                gameState.cps = BigInt(parsed.progress.cps);
+                Object.assign(gameState.workers, parsed.progress.workers);
+                Object.assign(gameState.upgrades, parsed.progress.upgrades);
+                gameState.prestige = parsed.progress.prestige;
 
-                if (parsed.appSettings?.ui?.settings) {
+                if (parsed.settings) {
                     appState.ui.settings.pureBlackBackground =
-                        parsed.appSettings.ui.settings.pureBlackBackground ??
-                        false;
+                        parsed.settings.pureBlackBackground ?? false;
                     appState.ui.settings.reduceFallingBits =
-                        parsed.appSettings.ui.settings.reduceFallingBits ??
-                        false;
+                        parsed.settings.reduceFallingBits ?? false;
                     appState.ui.settings.disableFallingBits =
-                        parsed.appSettings.ui.settings.disableFallingBits ??
-                        false;
+                        parsed.settings.disableFallingBits ?? false;
                 }
             } catch (e) {
                 console.error("Failed to parse local save", e);
@@ -147,26 +139,18 @@ export function initSaveSystem(
     const saveGame = () => {
         if (!hasLock) return;
 
-        const dataToSave = {
-            gameState: {
-                cookies: gameState.cookies.toString(),
-                cps: gameState.cps.toString(),
-                workers: gameState.workers,
-                upgrades: gameState.upgrades,
-                prestige: gameState.prestige,
-            },
-            appSettings: {
-                ui: {
-                    settings: {
-                        pureBlackBackground:
-                            appState.ui.settings.pureBlackBackground,
-                        reduceFallingBits:
-                            appState.ui.settings.reduceFallingBits,
-                        disableFallingBits:
-                            appState.ui.settings.disableFallingBits,
-                    },
-                },
-            },
+        const progressToSave = {
+            cookies: gameState.cookies.toString(),
+            cps: gameState.cps.toString(),
+            workers: gameState.workers,
+            upgrades: gameState.upgrades,
+            prestige: gameState.prestige,
+        };
+
+        const settingsToSave = {
+            pureBlackBackground: appState.ui.settings.pureBlackBackground,
+            reduceFallingBits: appState.ui.settings.reduceFallingBits,
+            disableFallingBits: appState.ui.settings.disableFallingBits,
         };
 
         if (appState.mode === "ssh") {
@@ -175,12 +159,26 @@ export function initSaveSystem(
                     appState.ssh!.accountId,
             );
             const ssh = appState.ssh!;
-            ssh!.db.run("UPDATE accounts SET data = ? WHERE id = ?", [
-                JSON.stringify(dataToSave),
-                ssh.accountId,
-            ]);
+            ssh!.db.run(
+                "UPDATE accounts SET progress = ?, settings = ? WHERE id = ?",
+                [
+                    JSON.stringify(progressToSave),
+                    JSON.stringify(settingsToSave),
+                    ssh.accountId,
+                ],
+            );
         } else {
-            writeFileSync(SAVE_FILE, JSON.stringify(dataToSave, null, 2));
+            writeFileSync(
+                SAVE_FILE,
+                JSON.stringify(
+                    {
+                        progress: progressToSave,
+                        settings: settingsToSave,
+                    },
+                    null,
+                    2,
+                ),
+            );
         }
     };
 

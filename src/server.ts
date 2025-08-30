@@ -57,7 +57,8 @@ sharedDb.run("PRAGMA synchronous = NORMAL;");
 sharedDb.run(`
   CREATE TABLE IF NOT EXISTS accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    data TEXT NOT NULL
+    progress TEXT NOT NULL,
+    settings TEXT NOT NULL
   );
 `);
 
@@ -430,7 +431,7 @@ async function handleLinkingTokenExec(
 
 export async function startSshServer(port: number, debug: boolean = false) {
     serverDebugMode = debug;
-    logger.info(`Starting SSH server in ${debug ? 'debug' : 'normal'} mode`);
+    logger.info(`Starting SSH server in ${debug ? "debug" : "normal"} mode`);
     startFileLogging();
     cleanupExpiredLinkingTokens(sharedDb);
 

@@ -294,6 +294,7 @@ export function drawSettings(
                         ` (current key)`,
                         chalk.gray.italic,
                     );
+                    currentX += 14;
                 }
                 if (
                     isSelected &&
@@ -305,15 +306,15 @@ export function drawSettings(
                         appState.ui.settings.keyToDelete === item.pubkey
                     ) {
                         terminal.draw(
-                            contentStartX,
-                            itemContentDrawY + 1,
+                            currentX + 1,
+                            itemContentDrawY,
                             "are you sure? [y]es [n]o",
                             chalk.red.bold,
                         );
                     } else {
                         terminal.draw(
-                            contentStartX,
-                            itemContentDrawY + 1,
+                            currentX + 1,
+                            itemContentDrawY,
                             `[r]emove`,
                             chalk.red,
                         );

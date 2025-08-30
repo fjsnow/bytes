@@ -10,7 +10,7 @@ import { drawStats } from "./ui/stats";
 import { drawUpgrades } from "./ui/upgrades";
 import { drawWorkers } from "./ui/workers";
 import { drawSettings } from "./ui/settings";
-import { recalcCps } from "./systems";
+import { recalcCps, calculatePrestigeCost } from "./systems";
 import { drawWatermark } from "./ui/watermark";
 import { drawDebug } from "./ui/debug";
 import { logger, redactPlayerKey } from "../utils/logger";
@@ -47,6 +47,8 @@ export class GameSession {
 
         this.terminal.onKey((key: string) => this.handleKey(key));
         recalcCps(this.gameState);
+        calculatePrestigeCost(this.gameState);
+        this.gameState.prestigeMultiplier = 2 ** this.gameState.prestige;
         return true;
     }
 
@@ -61,6 +63,7 @@ export class GameSession {
         if (this.appState.ui.highlightTicks > 0) {
             this.appState.ui.highlightTicks -= 1;
         }
+        calculatePrestigeCost(this.gameState);
     }
 
     public render() {
@@ -94,14 +97,14 @@ export class GameSession {
     }
 
     private renderLargeMain() {
-        drawCookie(this.appState, this.terminal);
+        drawCookie(this.appState, this.gameState, this.terminal);
         drawStats(this.appState, this.gameState, this.terminal);
         drawWorkers(this.appState, this.gameState, this.terminal);
         drawUpgrades(this.appState, this.gameState, this.terminal);
     }
 
     private renderMediumMain() {
-        drawCookie(this.appState, this.terminal);
+        drawCookie(this.appState, this.gameState, this.terminal);
         drawStats(this.appState, this.gameState, this.terminal);
         if (this.appState.ui.focus === "workers") {
             drawWorkers(this.appState, this.gameState, this.terminal);
@@ -111,12 +114,11 @@ export class GameSession {
     }
 
     private renderSmallMain() {
-        drawCookie(this.appState, this.terminal);
+        drawCookie(this.appState, this.gameState, this.terminal);
         drawStats(this.appState, this.gameState, this.terminal);
     }
 
     private drawNavBar() {
-        const { width } = this.terminal.getSize();
         const settingsText = "[S]ettings";
 
         if (this.appState.screen !== "main") {

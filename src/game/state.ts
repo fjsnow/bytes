@@ -40,7 +40,7 @@ export interface AppState {
             selectedIndex: number;
             scrollOffset: number;
             pureBlackBackground: boolean;
-            fallingBits: "full" | "reduced" | "disabled"; // New unified setting
+            fallingBits: "full" | "reduced" | "disabled";
             linkingToken: string | null;
             linkingTokenGeneratedAt?: number;
             linkedKeys: string[];
@@ -49,6 +49,7 @@ export interface AppState {
             isDeletingKey: boolean;
             keyToDelete: string | null;
         };
+        confirmPrestige: boolean;
         lastFocusBeforeSettings?: Focus;
     };
 }
@@ -59,6 +60,8 @@ export interface GameState {
     workers: Record<string, number>;
     upgrades: Record<string, number>;
     prestige: number;
+    prestigeCost: bigint;
+    prestigeMultiplier: number;
 }
 
 export function createInitialStandaloneAppState(
@@ -98,6 +101,7 @@ export function createInitialStandaloneAppState(
                 isDeletingKey: false,
                 keyToDelete: null,
             },
+            confirmPrestige: false,
             lastFocusBeforeSettings: layout === "small" ? "main" : "workers",
         },
     };
@@ -149,6 +153,7 @@ export function createInitialSSHAppState(
                 isDeletingKey: false,
                 keyToDelete: null,
             },
+            confirmPrestige: false,
             lastFocusBeforeSettings: layout === "small" ? "main" : "workers",
         },
     };
@@ -161,5 +166,7 @@ export function createInitialGameState(): GameState {
         workers: {},
         upgrades: {},
         prestige: 0,
+        prestigeCost: 0n,
+        prestigeMultiplier: 1,
     };
 }

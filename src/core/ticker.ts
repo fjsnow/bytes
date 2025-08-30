@@ -8,7 +8,7 @@ let lastSaveTime: number = 0;
 
 const AUTOSAVE_INTERVAL_MS = 60 * 1000;
 
-export const TPS = 25;
+export const TPS = 20;
 
 export function registerSession(session: GameSession) {
     activeSessions.add(session);

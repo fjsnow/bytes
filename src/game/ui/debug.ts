@@ -19,7 +19,7 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
         debugParts.push(sizeText);
     }
 
-    const screenLayoutText = `screen: ${appState.screen} | layout: ${appState.layout}`;
+    const screenLayoutText = `screen: ${appState.screen} | layout: ${appState.layout} | focus: ${appState.ui.focus}`;
     if (width >= 100) {
         debugParts.push(screenLayoutText);
     }

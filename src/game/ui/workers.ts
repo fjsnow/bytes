@@ -15,33 +15,66 @@ function drawWorker(
     gameState: GameState,
 ) {
     const count = gameState.workers[worker.id] ?? 0;
-    const cost = worker.cost(count);
-    const formattedCost = formatBytes(cost);
-    const canAfford = gameState.cookies >= cost;
+    const isLockedByPrestige =
+        worker.prerequisitePrestige !== undefined &&
+        gameState.prestige < worker.prerequisitePrestige;
 
-    terminal.draw(
-        5,
-        y,
-        worker.name,
-        canAfford ? chalk.yellow.bold : chalk.yellow,
-    );
-    terminal.draw(worker.name.length + 6, y, `(owned: ${count})`, chalk.gray);
-    terminal.draw(5, y + 1, "cost: ", chalk.gray);
-    terminal.draw(11, y + 1, formattedCost, chalk.white);
-    terminal.draw(formattedCost.length + 11, y + 1, ", bps: ", chalk.gray);
-    terminal.draw(
-        formattedCost.length + 18,
-        y + 1,
-        formatBytes(worker.baseCookiesPerSecond) + "/s",
-        chalk.white,
-    );
+    if (isLockedByPrestige) {
+        const redactedName = worker.name.replace(/./g, (char) =>
+            char === " " ? " " : "?",
+        );
+        const redactedValue = "???";
+        const requiredPrestigeText = `requires prestige ${worker.prerequisitePrestige}`;
 
-    if (highlight) {
-        terminal.draw(3, y, ">", chalk.yellow);
-        if (gameState.cookies >= cost) {
-            terminal.draw(5, y + 2, "[b]uy", chalk.green);
-        } else {
-            terminal.draw(5, y + 2, "you cannot afford this", chalk.red);
+        terminal.draw(5, y, redactedName, chalk.yellow.dim);
+        terminal.draw(5, y + 1, "cost: ", chalk.gray);
+        terminal.draw(11, y + 1, redactedValue, chalk.white.dim);
+        terminal.draw(redactedValue.length + 11, y + 1, ", bps: ", chalk.gray);
+        terminal.draw(
+            redactedValue.length + 18,
+            y + 1,
+            redactedValue + "/s",
+            chalk.white.dim,
+        );
+
+        if (highlight) {
+            terminal.draw(3, y, ">", chalk.yellow.dim);
+            terminal.draw(5, y + 2, requiredPrestigeText, chalk.red.dim);
+        }
+    } else {
+        const cost = worker.cost(count);
+        const formattedCost = formatBytes(cost);
+        const canAfford = gameState.cookies >= cost;
+
+        terminal.draw(
+            5,
+            y,
+            worker.name,
+            canAfford ? chalk.yellow.bold : chalk.yellow,
+        );
+        terminal.draw(
+            worker.name.length + 6,
+            y,
+            `(owned: ${count})`,
+            chalk.gray,
+        );
+        terminal.draw(5, y + 1, "cost: ", chalk.gray);
+        terminal.draw(11, y + 1, formattedCost, chalk.white);
+        terminal.draw(formattedCost.length + 11, y + 1, ", bps: ", chalk.gray);
+        terminal.draw(
+            formattedCost.length + 18,
+            y + 1,
+            formatBytes(worker.baseCookiesPerSecond) + "/s",
+            chalk.white,
+        );
+
+        if (highlight) {
+            terminal.draw(3, y, ">", chalk.yellow);
+            if (gameState.cookies >= cost) {
+                terminal.draw(5, y + 2, "[b]uy", chalk.green);
+            } else {
+                terminal.draw(5, y + 2, "you cannot afford this", chalk.red);
+            }
         }
     }
 }
@@ -65,6 +98,21 @@ export function drawWorkers(
         focused ? chalk.yellow.bold : chalk.gray.bold,
     );
     if (focused) terminal.draw(11, 2, "j(↓) / k(↑)", chalk.gray);
+
+    appState.ui.workers.selectedIndex = Math.min(
+        appState.ui.workers.selectedIndex,
+        WORKER_DATA.length > 0 ? WORKER_DATA.length - 1 : 0,
+    );
+    appState.ui.workers.selectedIndex = Math.max(
+        0,
+        appState.ui.workers.selectedIndex,
+    );
+    appState.ui.workers.scrollOffset = ensureVisible(
+        appState.ui.workers.selectedIndex,
+        appState.ui.workers.scrollOffset,
+        maxVisible,
+        WORKER_DATA.length,
+    );
 
     const start = appState.ui.workers.scrollOffset;
     const end = Math.min(start + maxVisible, WORKER_DATA.length);
@@ -104,12 +152,15 @@ export function moveWorkerSelection(
     appState: AppState,
     terminal: ITerminal,
     delta: number,
+    gameState: GameState,
 ) {
     const { height } = terminal.getSize();
     const maxVisible = Math.floor((height - 5) / WORKER_ITEM_HEIGHT);
-
     let newIndex = appState.ui.workers.selectedIndex + delta;
-    newIndex = Math.max(0, Math.min(newIndex, WORKER_DATA.length - 1));
+    newIndex = Math.max(
+        0,
+        Math.min(newIndex, WORKER_DATA.length > 0 ? WORKER_DATA.length - 1 : 0),
+    );
     appState.ui.workers.selectedIndex = newIndex;
 
     appState.ui.workers.scrollOffset = ensureVisible(

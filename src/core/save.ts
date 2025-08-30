@@ -43,12 +43,15 @@ export function initSaveSystem(
             logger.info(
                 `Initializing or re-initializing account data for new/missing account ${accountId}.`,
             );
+
+            const initialGameState = createInitialGameState();
             const initialProgress = JSON.stringify({
-                cookies: createInitialGameState().cookies.toString(),
-                cps: createInitialGameState().cps.toString(),
-                workers: createInitialGameState().workers,
-                upgrades: createInitialGameState().upgrades,
-                prestige: createInitialGameState().prestige,
+                cookies: initialGameState.cookies.toString(),
+                cps: initialGameState.cps.toString(),
+                workers: initialGameState.workers,
+                upgrades: initialGameState.upgrades,
+                prestige: initialGameState.prestige,
+                prestigeMultiplier: initialGameState.prestigeMultiplier,
             });
             const initialSettings = JSON.stringify({
                 pureBlackBackground: appState.ui.settings.pureBlackBackground,
@@ -71,7 +74,9 @@ export function initSaveSystem(
             gameState.cps = BigInt(parsedProgress.cps);
             Object.assign(gameState.workers, parsedProgress.workers);
             Object.assign(gameState.upgrades, parsedProgress.upgrades);
-            gameState.prestige = parsedProgress.prestige;
+            gameState.prestige = parsedProgress.prestige ?? 0;
+            gameState.prestigeMultiplier =
+                parsedProgress.prestigeMultiplier ?? 1;
 
             const parsedSettings = JSON.parse(accountDataRow.settings);
             if (parsedSettings) {
@@ -116,7 +121,9 @@ export function initSaveSystem(
                 gameState.cps = BigInt(parsed.progress.cps);
                 Object.assign(gameState.workers, parsed.progress.workers);
                 Object.assign(gameState.upgrades, parsed.progress.upgrades);
-                gameState.prestige = parsed.progress.prestige;
+                gameState.prestige = parsed.progress.prestige ?? 0;
+                gameState.prestigeMultiplier =
+                    parsed.progress.prestigeMultiplier ?? 1;
 
                 if (parsed.settings) {
                     appState.ui.settings.pureBlackBackground =
@@ -139,6 +146,7 @@ export function initSaveSystem(
             workers: gameState.workers,
             upgrades: gameState.upgrades,
             prestige: gameState.prestige,
+            prestigeMultiplier: gameState.prestigeMultiplier,
         };
 
         const settingsToSave = {

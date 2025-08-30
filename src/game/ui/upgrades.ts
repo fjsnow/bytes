@@ -1,4 +1,3 @@
-// src/game/ui/upgrades.ts
 import chalk from "chalk";
 import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
@@ -14,12 +13,19 @@ export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
         if (appState.ui.upgradesShowMaxed) return true;
         const owned = gameState.upgrades[u.id] || 0;
         return !u.maxOwned || owned < u.maxOwned;
-    }).filter((u) => {
-        if (u.prerequisiteWorkerId) {
-            return (gameState.workers[u.prerequisiteWorkerId] || 0) > 0;
-        }
-        return true;
-    });
+    })
+        .filter((u) => {
+            if (u.prerequisiteWorkerId) {
+                return (gameState.workers[u.prerequisiteWorkerId] || 0) > 0;
+            }
+            return true;
+        })
+        .filter((u) => {
+            if (u.prerequisitePrestige !== undefined) {
+                return gameState.prestige >= u.prerequisitePrestige;
+            }
+            return true;
+        });
 }
 
 function drawUpgrade(
@@ -35,12 +41,15 @@ function drawUpgrade(
     const cost = upgrade.cost(count);
     const formattedCost = formatBytes(cost);
     const canAfford = gameState.cookies >= cost;
+    const isLockedByPrestige =
+        upgrade.prerequisitePrestige !== undefined &&
+        gameState.prestige < upgrade.prerequisitePrestige;
 
     terminal.draw(
         x + 2,
         y,
         upgrade.name,
-        canAfford ? chalk.blue.bold : chalk.blue,
+        canAfford && !isLockedByPrestige ? chalk.blue.bold : chalk.blue,
     );
 
     const ownedText = upgrade.maxOwned
@@ -62,27 +71,34 @@ function drawUpgrade(
 
     if (highlight) {
         terminal.draw(x, y, ">", chalk.blue);
-        if (canAfford) {
-            if (upgrade.maxOwned && count >= upgrade.maxOwned) {
-                terminal.draw(
-                    x + 2,
-                    y + 2 + descLines.length,
-                    "maxed out",
-                    chalk.red,
-                );
-            } else {
+        if (isLockedByPrestige) {
+            terminal.draw(
+                x + 2,
+                y + 2 + descLines.length,
+                `requires prestige ${upgrade.prerequisitePrestige}`,
+                chalk.red.dim,
+            );
+        } else if (!upgrade.maxOwned || count < upgrade.maxOwned) {
+            if (canAfford) {
                 terminal.draw(
                     x + 2,
                     y + 2 + descLines.length,
                     "[b]uy",
                     chalk.green,
                 );
+            } else {
+                terminal.draw(
+                    x + 2,
+                    y + 2 + descLines.length,
+                    "you cannot afford this",
+                    chalk.red,
+                );
             }
         } else {
             terminal.draw(
                 x + 2,
                 y + 2 + descLines.length,
-                "you cannot afford this",
+                "maxed out",
                 chalk.red,
             );
         }
@@ -135,6 +151,21 @@ export function drawUpgrades(
     }
 
     const filtered = getFilteredUpgrades(appState, gameState);
+    appState.ui.upgrades.selectedIndex = Math.min(
+        appState.ui.upgrades.selectedIndex,
+        filtered.length > 0 ? filtered.length - 1 : 0,
+    );
+    appState.ui.upgrades.selectedIndex = Math.max(
+        0,
+        appState.ui.upgrades.selectedIndex,
+    );
+    appState.ui.upgrades.scrollOffset = ensureVisible(
+        appState.ui.upgrades.selectedIndex,
+        appState.ui.upgrades.scrollOffset,
+        maxVisible,
+        filtered.length,
+    );
+
     const start = appState.ui.upgrades.scrollOffset;
     const end = Math.min(start + maxVisible, filtered.length);
 
@@ -203,7 +234,10 @@ export function moveUpgradeSelection(
 ) {
     const filtered = getFilteredUpgrades(appState, gameState);
     let newIndex = appState.ui.upgrades.selectedIndex + delta;
-    newIndex = Math.max(0, Math.min(newIndex, filtered.length - 1));
+    newIndex = Math.max(
+        0,
+        Math.min(newIndex, filtered.length > 0 ? filtered.length - 1 : 0),
+    );
     appState.ui.upgrades.selectedIndex = newIndex;
 
     ensureUpgradeVisible(appState, gameState, terminal);

@@ -16,7 +16,6 @@ import {
     unregisterSession as unregisterRendererSession,
 } from "./core/renderer";
 import { createInitialSSHAppState } from "./game/state";
-import chalk from "chalk";
 import {
     logger,
     redactPlayerKey,

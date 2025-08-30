@@ -1,13 +1,21 @@
 import type { AppState, GameState } from "./state";
-import { WORKER_DATA, type Worker } from "./data/workers";
+import { WORKER_DATA } from "./data/workers";
 import { UPGRADE_DATA } from "./data/upgrades";
 import type { ITerminal } from "../core/terminal";
+import { createInitialGameState } from "./state";
 
 export function recalcCps(gameState: GameState) {
     let totalCpsFromWorkers = 0n;
     const workerCpsContributions: Record<string, bigint> = {};
 
     for (const worker of WORKER_DATA) {
+        if (
+            worker.prerequisitePrestige !== undefined &&
+            gameState.prestige < worker.prerequisitePrestige
+        ) {
+            continue;
+        }
+
         const count = BigInt(gameState.workers[worker.id] || 0);
         const contribution = count * worker.baseCookiesPerSecond;
         workerCpsContributions[worker.id] = contribution;
@@ -15,6 +23,12 @@ export function recalcCps(gameState: GameState) {
     }
 
     for (const upgrade of UPGRADE_DATA) {
+        if (
+            upgrade.prerequisitePrestige !== undefined &&
+            gameState.prestige < upgrade.prerequisitePrestige
+        ) {
+            continue;
+        }
         const owned = gameState.upgrades[upgrade.id] || 0;
         if (!owned) continue;
 
@@ -60,6 +74,13 @@ export function recalcCps(gameState: GameState) {
     }
 
     for (const upgrade of UPGRADE_DATA) {
+        if (
+            upgrade.prerequisitePrestige !== undefined &&
+            gameState.prestige < upgrade.prerequisitePrestige
+        ) {
+            continue;
+        }
+
         const owned = gameState.upgrades[upgrade.id] || 0;
         if (!owned) continue;
         const ownedBigInt = BigInt(owned);
@@ -81,13 +102,12 @@ export function recalcCps(gameState: GameState) {
         }
     }
 
-    gameState.cps = totalCpsFromWorkers;
-}
+    totalCpsFromWorkers =
+        (totalCpsFromWorkers *
+            BigInt(Math.round(gameState.prestigeMultiplier * 100))) /
+        100n;
 
-function getClickDelay(gameState: GameState) {
-    const baseDelay = 100;
-    const ergonomic = gameState.upgrades["ergonomic_mice"] || 0;
-    return baseDelay / (1 + ergonomic * 0.5);
+    gameState.cps = totalCpsFromWorkers;
 }
 
 export function clickCookie(
@@ -95,8 +115,7 @@ export function clickCookie(
     gameState: GameState,
     terminal: ITerminal,
 ) {
-    const clickDelay = getClickDelay(gameState);
-    if (Date.now() - appState.ui.lastClickTime < clickDelay) {
+    if (Date.now() - appState.ui.lastClickTime < 100) {
         appState.ui.lastClickTime = Date.now();
         return;
     }
@@ -107,6 +126,10 @@ export function clickCookie(
     if (gameState.upgrades["mechanical_keyboards"] > 0) {
         clickGain += BigInt(gameState.upgrades["mechanical_keyboards"]);
     }
+
+    clickGain =
+        (clickGain * BigInt(Math.round(gameState.prestigeMultiplier * 100))) /
+        100n;
 
     gameState.cookies += clickGain;
     appState.ui.highlightTicks = 10;
@@ -132,12 +155,21 @@ export function clickCookie(
 export function buyWorker(id: string, gameState: GameState) {
     const worker = WORKER_DATA.find((w) => w.id === id);
     if (!worker) return false;
+
+    if (
+        worker.prerequisitePrestige !== undefined &&
+        gameState.prestige < worker.prerequisitePrestige
+    ) {
+        return false;
+    }
+
     const count = gameState.workers[id] || 0;
     const cost = worker.cost(count);
     if (gameState.cookies >= cost) {
         gameState.cookies -= cost;
         gameState.workers[id] = count + 1;
         recalcCps(gameState);
+        calculatePrestigeCost(gameState);
         return true;
     }
     return false;
@@ -146,6 +178,14 @@ export function buyWorker(id: string, gameState: GameState) {
 export function buyUpgrade(id: string, gameState: GameState) {
     const upgrade = UPGRADE_DATA.find((u) => u.id === id);
     if (!upgrade) return false;
+
+    if (
+        upgrade.prerequisitePrestige !== undefined &&
+        gameState.prestige < upgrade.prerequisitePrestige
+    ) {
+        return false;
+    }
+
     const owned = gameState.upgrades[id] || 0;
     if (upgrade.maxOwned !== undefined && owned >= upgrade.maxOwned)
         return false;
@@ -155,6 +195,7 @@ export function buyUpgrade(id: string, gameState: GameState) {
         gameState.cookies -= cost;
         gameState.upgrades[id] = owned + 1;
         recalcCps(gameState);
+        calculatePrestigeCost(gameState);
         return true;
     }
     return false;
@@ -164,4 +205,34 @@ export function skipTime(gameState: GameState, minutes: number) {
     const seconds = BigInt(minutes * 60);
     const cookiesToAdd = gameState.cps * seconds;
     gameState.cookies += cookiesToAdd;
+    calculatePrestigeCost(gameState);
+}
+
+export function calculatePrestigeCost(gameState: GameState) {
+    const initialPrestigeCost = 1024n ** 2n;
+    const prestigeCostPerLevelMultiplier = 256n;
+
+    let cost = initialPrestigeCost;
+    for (let i = 0; i < gameState.prestige; i++) {
+        cost *= prestigeCostPerLevelMultiplier;
+    }
+
+    gameState.prestigeCost = cost;
+}
+
+export function prestige(gameState: GameState, appState: AppState) {
+    if (gameState.cookies >= gameState.prestigeCost) {
+        const initial = createInitialGameState();
+
+        gameState.prestige++;
+        gameState.cookies = initial.cookies;
+        appState.ui.cookieAccumulator = 0;
+        gameState.cps = initial.cps;
+        gameState.workers = initial.workers;
+        gameState.upgrades = initial.upgrades;
+        calculatePrestigeCost(gameState);
+        gameState.prestigeMultiplier = 2 ** gameState.prestige;
+        return true;
+    }
+    return false;
 }

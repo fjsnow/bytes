@@ -2,7 +2,6 @@ import ansiEscapes from "ansi-escapes";
 import type { AppState } from "../game/state";
 import type { Duplex } from "stream";
 import chalk from "chalk";
-import { logger } from "../utils/logger";
 
 type Cell = {
     char: string;

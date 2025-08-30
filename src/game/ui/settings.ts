@@ -16,11 +16,15 @@ import {
 export type SettingsItem =
     | {
           type: "toggle";
-          id:
-              | "pureBlackBackground"
-              | "reduceFallingBits"
-              | "disableFallingBits";
+          id: "pureBlackBackground";
           label: string;
+          description?: string;
+      }
+    | {
+          type: "options";
+          id: "fallingBits";
+          label: string;
+          options: { value: string; label: string }[];
           description?: string;
       }
     | { type: "linkedKeysHeader" }
@@ -41,6 +45,14 @@ export function getSettingsItemHeight(
         case "linkedKeysHeader":
             return 1;
         case "toggle": {
+            let height = 2;
+            if (item.description) {
+                const descLines = wrapText(item.description, panelWidth - 4);
+                height += descLines.length;
+            }
+            return height;
+        }
+        case "options": {
             let height = 2;
             if (item.description) {
                 const descLines = wrapText(item.description, panelWidth - 4);
@@ -98,16 +110,16 @@ export function getSettingsItems(appState: AppState): SettingsItem[] {
                 "Enables a pure black background, may look better on lighter backgrounds.",
         },
         {
-            type: "toggle",
-            id: "reduceFallingBits",
-            label: "Reduce Falling Bits",
-            description: "Reduces distractions by having fewer falling bits.",
-        },
-        {
-            type: "toggle",
-            id: "disableFallingBits",
-            label: "Disable Falling Bits",
-            description: "Completely disables all falling bits.",
+            type: "options",
+            id: "fallingBits",
+            label: "Falling Bits",
+            options: [
+                { value: "full", label: "Full" },
+                { value: "reduced", label: "Reduced" },
+                { value: "disabled", label: "Disabled" },
+            ],
+            description:
+                "Control the intensity of falling bits or disable them completely.",
         },
     ];
 
@@ -253,6 +265,54 @@ export function drawSettings(
                     const hint = checked ? "[d]isable" : "[e]nable";
                     const color = checked ? chalk.red : chalk.green;
                     terminal.draw(contentStartX, itemContentDrawY, hint, color);
+                }
+                break;
+            }
+            case "options": {
+                terminal.draw(
+                    pointerX,
+                    itemContentDrawY,
+                    pointerChar,
+                    chalk.white,
+                );
+                const currentValue = appState.ui.settings[item.id];
+                const currentLabel =
+                    item.options.find((o) => o.value === currentValue)?.label ||
+                    "Unknown";
+                terminal.draw(
+                    contentStartX,
+                    itemContentDrawY,
+                    item.label + ": ",
+                    isSelected ? chalk.white.bold : chalk.white,
+                );
+                terminal.draw(
+                    contentStartX + item.label.length + 2,
+                    itemContentDrawY,
+                    currentLabel,
+                    chalk.gray,
+                );
+                itemContentDrawY += 1;
+                if (item.description) {
+                    const descLines = wrapText(
+                        item.description,
+                        panelWidth - 4,
+                    );
+                    for (const line of descLines) {
+                        terminal.draw(
+                            contentStartX,
+                            itemContentDrawY++,
+                            line,
+                            chalk.gray.italic,
+                        );
+                    }
+                }
+                if (isSelected) {
+                    terminal.draw(
+                        contentStartX,
+                        itemContentDrawY,
+                        "[tab] to cycle",
+                        chalk.green,
+                    );
                 }
                 break;
             }

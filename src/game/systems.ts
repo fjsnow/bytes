@@ -111,8 +111,13 @@ export function clickCookie(
     gameState.cookies += clickGain;
     appState.ui.highlightTicks = 10;
 
-    if (!appState.ui.settings.reduceFallingBits || Math.random() < 0.5) {
-        if (!appState.ui.settings.disableFallingBits) {
+    if (appState.ui.settings.fallingBits !== "disabled") {
+        const shouldSpawn =
+            appState.ui.settings.fallingBits === "full" ||
+            (appState.ui.settings.fallingBits === "reduced" &&
+                Math.random() < 0.5);
+
+        if (shouldSpawn) {
             const { width, height } = terminal.getSize();
             appState.ui.fallingBits.push({
                 x: Math.floor(Math.random() * (width - 2)) + 1,

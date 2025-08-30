@@ -3,7 +3,7 @@ import type { ITerminal } from "../../core/terminal";
 
 export function tickBits(appState: AppState, terminal: ITerminal) {
     if (appState.ui.fallingBits.length === 0) return;
-    if (appState.ui.settings.disableFallingBits) {
+    if (appState.ui.settings.fallingBits === "disabled") {
         appState.ui.fallingBits = [];
         return;
     }

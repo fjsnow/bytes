@@ -40,8 +40,7 @@ export interface AppState {
             selectedIndex: number;
             scrollOffset: number;
             pureBlackBackground: boolean;
-            reduceFallingBits: boolean;
-            disableFallingBits: boolean;
+            fallingBits: "full" | "reduced" | "disabled"; // New unified setting
             linkingToken: string | null;
             linkingTokenGeneratedAt?: number;
             linkedKeys: string[];
@@ -62,7 +61,10 @@ export interface GameState {
     prestige: number;
 }
 
-export function createInitialStandaloneAppState(layout: Layout, debug: boolean = false): AppState {
+export function createInitialStandaloneAppState(
+    layout: Layout,
+    debug: boolean = false,
+): AppState {
     return {
         screen: "main",
         layout,
@@ -88,8 +90,7 @@ export function createInitialStandaloneAppState(layout: Layout, debug: boolean =
                 selectedIndex: 0,
                 scrollOffset: 0,
                 pureBlackBackground: false,
-                reduceFallingBits: false,
-                disableFallingBits: false,
+                fallingBits: "full",
                 linkingToken: null,
                 linkedKeys: [],
                 isDeletingAccount: false,
@@ -140,8 +141,7 @@ export function createInitialSSHAppState(
                 selectedIndex: 0,
                 scrollOffset: 0,
                 pureBlackBackground: false,
-                reduceFallingBits: false,
-                disableFallingBits: false,
+                fallingBits: "full",
                 linkingToken: null,
                 linkedKeys: [],
                 isDeletingAccount: false,

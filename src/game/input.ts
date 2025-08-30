@@ -70,8 +70,29 @@ export async function handleGameInput(session: GameSession, key: string) {
         }
     }
 
+    // Handle Tab for global focus cycling or setting options
     if (key === "\t") {
-        cycleFocus(appState);
+        if (appState.screen === "settings") {
+            const allItems = getSettingsItems(appState);
+            const selectedItem = allItems[appState.ui.settings.selectedIndex];
+            if (selectedItem && selectedItem.type === "options") {
+                // Cycle option value if an options setting is focused
+                const currentIndex = selectedItem.options.findIndex(
+                    (o) =>
+                        o.value ===
+                        appState.ui.settings[
+                            selectedItem.id as keyof typeof appState.ui.settings
+                        ],
+                );
+                const nextIndex =
+                    (currentIndex + 1) % selectedItem.options.length;
+                appState.ui.settings[
+                    selectedItem.id as keyof typeof appState.ui.settings
+                ] = selectedItem.options[nextIndex].value as any; // Cast to any to satisfy type checker
+                return;
+            }
+        }
+        cycleFocus(appState); // Fallback to global focus cycle
         return;
     } else if (key === "\u0008" || key === "\u007f") {
         if (appState.screen !== "main") {
@@ -204,6 +225,10 @@ async function handleSettingsScreenInput(session: GameSession, key: string) {
         appState.ui.settings.keyToDelete = null;
         return;
     }
+
+    // Note: Tab is handled globally in handleGameInput now for options
+    // The previous 'e' and 'd' for options are also removed here to avoid overlap
+    // and rely solely on 'Tab' for cycling options.
 
     if (appState.ui.settings.isDeletingAccount) {
         if (key.toLowerCase() === "y") {

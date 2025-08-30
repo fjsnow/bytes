@@ -52,8 +52,7 @@ export function initSaveSystem(
             });
             const initialSettings = JSON.stringify({
                 pureBlackBackground: appState.ui.settings.pureBlackBackground,
-                reduceFallingBits: appState.ui.settings.reduceFallingBits,
-                disableFallingBits: appState.ui.settings.disableFallingBits,
+                fallingBits: appState.ui.settings.fallingBits,
             });
 
             db.run(
@@ -78,11 +77,8 @@ export function initSaveSystem(
             if (parsedSettings) {
                 appState.ui.settings.pureBlackBackground =
                     parsedSettings.pureBlackBackground ?? false;
-                appState.ui.settings.reduceFallingBits =
-                    parsedSettings.reduceFallingBits ?? false;
-
-                appState.ui.settings.disableFallingBits =
-                    parsedSettings.disableFallingBits ?? false;
+                appState.ui.settings.fallingBits =
+                    parsedSettings.fallingBits ?? "full";
             }
             logger.info(`Loaded game state for account ${accountId}.`);
         } catch (e) {
@@ -125,10 +121,8 @@ export function initSaveSystem(
                 if (parsed.settings) {
                     appState.ui.settings.pureBlackBackground =
                         parsed.settings.pureBlackBackground ?? false;
-                    appState.ui.settings.reduceFallingBits =
-                        parsed.settings.reduceFallingBits ?? false;
-                    appState.ui.settings.disableFallingBits =
-                        parsed.settings.disableFallingBits ?? false;
+                    appState.ui.settings.fallingBits =
+                        parsed.settings.fallingBits ?? "full";
                 }
             } catch (e) {
                 console.error("Failed to parse local save", e);
@@ -149,8 +143,7 @@ export function initSaveSystem(
 
         const settingsToSave = {
             pureBlackBackground: appState.ui.settings.pureBlackBackground,
-            reduceFallingBits: appState.ui.settings.reduceFallingBits,
-            disableFallingBits: appState.ui.settings.disableFallingBits,
+            fallingBits: appState.ui.settings.fallingBits,
         };
 
         if (appState.mode === "ssh") {

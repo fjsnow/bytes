@@ -4,7 +4,11 @@ import type { Duplex } from "stream";
 import chalk from "chalk";
 import { logger } from "../utils/logger";
 
-type Cell = { char: string; color?: (s: string) => string };
+type Cell = {
+    char: string;
+    color: ((s: string) => string) | null;
+    blackBg: boolean;
+};
 type KeyHandler = (key: string) => void;
 
 export interface ITerminal {
@@ -46,7 +50,11 @@ export class CliTerminal implements ITerminal {
 
     private makeBuffer(w: number, h: number): Cell[][] {
         return Array.from({ length: h }, () =>
-            Array.from({ length: w }, () => ({ char: " " })),
+            Array.from({ length: w }, () => ({
+                char: " ",
+                color: null,
+                blackBg: this.appState.ui.settings.pureBlackBackground,
+            })),
         );
     }
 
@@ -148,7 +156,6 @@ export class CliTerminal implements ITerminal {
             process.stdout.write(ansiEscapes.cursorHide);
         }
         this.nextBuffer = this.makeBuffer(this.width, this.height);
-        if (full) this.prevBuffer = this.makeBuffer(this.width, this.height);
     }
 
     public draw(
@@ -163,14 +170,17 @@ export class CliTerminal implements ITerminal {
         for (let i = 0; i < text.length; i++) {
             const pos = x + i;
             if (pos < this.width) {
-                this.nextBuffer[y][pos] = { char: text[i], color };
+                this.nextBuffer[y][pos] = {
+                    char: text[i],
+                    color: color ?? null,
+                    blackBg: this.appState.ui.settings.pureBlackBackground,
+                };
             }
         }
     }
 
     public render() {
         if (!process.stdout.isTTY) return;
-        const blackBackground = this.appState.ui.settings.pureBlackBackground;
 
         for (let y = 0; y < this.height; y++) {
             let nextRow = "";
@@ -180,20 +190,24 @@ export class CliTerminal implements ITerminal {
                 const nextCell = this.nextBuffer[y][x];
                 const prevCell = this.prevBuffer[y][x];
 
-                let nextStyledChar = nextCell.char;
-                let prevStyledChar = prevCell.char;
+                let nextStyledChar = nextCell.color
+                    ? nextCell.color(nextCell.char)
+                    : nextCell.char;
 
-                if (blackBackground) {
-                    nextStyledChar = chalk.bgBlack(nextStyledChar);
-                    prevStyledChar = chalk.bgBlack(prevStyledChar);
-                }
-
-                nextRow += nextCell.color
-                    ? nextCell.color(nextStyledChar)
+                nextStyledChar = nextCell.blackBg
+                    ? chalk.bgBlack(nextStyledChar)
                     : nextStyledChar;
-                prevRow += prevCell.color
-                    ? prevCell.color(prevStyledChar)
+
+                let prevStyledChar = prevCell.color
+                    ? prevCell.color(prevCell.char)
+                    : prevCell.char;
+
+                prevStyledChar = prevCell.blackBg
+                    ? chalk.bgBlack(prevStyledChar)
                     : prevStyledChar;
+
+                nextRow += nextStyledChar;
+                prevRow += prevStyledChar;
             }
 
             let currentRow = nextRow;
@@ -260,7 +274,11 @@ export class SshTerminal implements ITerminal {
 
     private makeBuffer(w: number, h: number): Cell[][] {
         return Array.from({ length: h }, () =>
-            Array.from({ length: w }, () => ({ char: " " })),
+            Array.from({ length: w }, () => ({
+                char: " ",
+                color: null,
+                blackBg: this.appState.ui.settings.pureBlackBackground,
+            })),
         );
     }
 
@@ -364,7 +382,6 @@ export class SshTerminal implements ITerminal {
             this.stream.write(ansiEscapes.cursorHide);
         }
         this.nextBuffer = this.makeBuffer(this.width, this.height);
-        if (full) this.prevBuffer = this.makeBuffer(this.width, this.height);
     }
 
     public draw(
@@ -379,14 +396,16 @@ export class SshTerminal implements ITerminal {
         for (let i = 0; i < text.length; i++) {
             const pos = x + i;
             if (pos < this.width) {
-                this.nextBuffer[y][pos] = { char: text[i], color };
+                this.nextBuffer[y][pos] = {
+                    char: text[i],
+                    color: color ?? null,
+                    blackBg: this.appState.ui.settings.pureBlackBackground,
+                };
             }
         }
     }
 
     public render() {
-        const blackBackground = this.appState.ui.settings.pureBlackBackground;
-
         for (let y = 0; y < this.height; y++) {
             let nextRow = "";
             let prevRow = "";
@@ -398,14 +417,18 @@ export class SshTerminal implements ITerminal {
                 let nextStyledChar = nextCell.color
                     ? nextCell.color(nextCell.char)
                     : nextCell.char;
+
+                nextStyledChar = nextCell.blackBg
+                    ? chalk.bgBlack(nextStyledChar)
+                    : nextStyledChar;
+
                 let prevStyledChar = prevCell.color
                     ? prevCell.color(prevCell.char)
                     : prevCell.char;
 
-                if (blackBackground) {
-                    nextStyledChar = chalk.bgBlack(nextStyledChar);
-                    prevStyledChar = chalk.bgBlack(prevStyledChar);
-                }
+                prevStyledChar = prevCell.blackBg
+                    ? chalk.bgBlack(prevStyledChar)
+                    : prevStyledChar;
 
                 nextRow += nextStyledChar;
                 prevRow += prevStyledChar;

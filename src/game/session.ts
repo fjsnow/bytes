@@ -44,10 +44,6 @@ export class GameSession {
             process.exit(1);
         }
 
-        if (this.appState.ui.settings.pureBlackBackground) {
-            this.terminal.clear(true);
-        }
-
         this.terminal.onKey((key: string) => this.handleKey(key));
         recalcCps(this.gameState);
         return true;

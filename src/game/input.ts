@@ -74,7 +74,6 @@ export async function handleGameInput(session: GameSession, key: string) {
             if (appState.layout !== "small" && appState.ui.focus === "main") {
                 appState.ui.focus = "workers";
             }
-            terminal.clear(true);
             return;
         }
     }
@@ -267,12 +266,8 @@ async function handleSettingsScreenInput(session: GameSession, key: string) {
         const currentToggleState = appState.ui.settings[currentSelectedItem.id];
         if (key.toLowerCase() === "e" && !currentToggleState) {
             appState.ui.settings[currentSelectedItem.id] = true;
-            if (currentSelectedItem.id === "pureBlackBackground")
-                terminal.clear(true);
         } else if (key.toLowerCase() === "d" && currentToggleState) {
             appState.ui.settings[currentSelectedItem.id] = false;
-            if (currentSelectedItem.id === "pureBlackBackground")
-                terminal.clear(true);
         }
     } else if (currentSelectedItem.type === "action") {
         if (
@@ -349,7 +344,6 @@ function handleLargeInput(
             appState.ui.settings.confirmDeleteAccount = false;
             appState.ui.settings.isDeletingKey = false;
             appState.ui.settings.keyToDelete = null;
-            terminal.clear(true);
         },
         j: () => {
             if (appState.ui.focus === "workers") {
@@ -411,7 +405,6 @@ function handleMediumInput(
                 appState.ui.settings.confirmDeleteAccount = false;
                 appState.ui.settings.isDeletingKey = false;
                 appState.ui.settings.keyToDelete = null;
-                terminal.clear(true);
             },
             j: () => {
                 if (appState.ui.focus === "workers") {
@@ -465,12 +458,10 @@ function handleSmallInput(
             w: () => {
                 appState.screen = "workers";
                 appState.ui.focus = "workers";
-                terminal.clear(true);
             },
             u: () => {
                 appState.screen = "upgrades";
                 appState.ui.focus = "upgrades";
-                terminal.clear(true);
             },
             s: () => {
                 appState.screen = "settings";
@@ -481,7 +472,6 @@ function handleSmallInput(
                 appState.ui.settings.confirmDeleteAccount = false;
                 appState.ui.settings.isDeletingKey = false;
                 appState.ui.settings.keyToDelete = null;
-                terminal.clear(true);
             },
         };
         if (map[key]) map[key]();

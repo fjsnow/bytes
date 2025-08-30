@@ -1,3 +1,4 @@
+// src/game/ui/upgrades.ts
 import chalk from "chalk";
 import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
@@ -13,6 +14,11 @@ export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
         if (appState.ui.upgradesShowMaxed) return true;
         const owned = gameState.upgrades[u.id] || 0;
         return !u.maxOwned || owned < u.maxOwned;
+    }).filter((u) => {
+        if (u.prerequisiteWorkerId) {
+            return (gameState.workers[u.prerequisiteWorkerId] || 0) > 0;
+        }
+        return true;
     });
 }
 

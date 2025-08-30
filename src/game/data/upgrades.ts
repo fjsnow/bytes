@@ -1,9 +1,11 @@
+// src/game/data/upgrades.ts
 export interface Upgrade {
     id: string;
     name: string;
     cost: (owned: number) => bigint;
     description: string;
     maxOwned?: number;
+    prerequisiteWorkerId?: string;
 }
 
 function bigintGeometricCost(
@@ -31,13 +33,14 @@ export const UPGRADE_DATA: Upgrade[] = [
         id: "ergonomic_mice",
         name: "Ergonomic Mice",
         cost: (owned) => bigintGeometricCost(8n * 1024n, 150n, 100n, owned),
-        description: "Clicking speed limit increased by 50%. Max: 2.",
+        description: "Clicking speed limit increased by 50%.",
         maxOwned: 2,
     },
     {
         id: "free_pizza",
         name: "Free Pizza Fridays",
         cost: (owned) => bigintGeometricCost(64n * 1024n, 115n, 100n, owned),
+        prerequisiteWorkerId: "intern",
         description: "Interns produce 2× more.",
         maxOwned: 1,
     },
@@ -45,6 +48,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         id: "pair_programming",
         name: "Pair Programming",
         cost: (owned) => bigintGeometricCost(256n * 1024n, 115n, 100n, owned),
+        prerequisiteWorkerId: "junior_dev",
         description: "Junior Developers produce 2× more.",
         maxOwned: 1,
     },
@@ -53,6 +57,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         name: "Agile Methodology",
         cost: (owned) =>
             bigintGeometricCost(4n * 1024n ** 2n, 115n, 100n, owned),
+        prerequisiteWorkerId: "senior_dev",
         description: "Senior Developers and Tech Leads produce 2× more.",
         maxOwned: 1,
     },
@@ -61,6 +66,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         name: "Scrum Masters",
         cost: (owned) =>
             bigintGeometricCost(16n * 1024n ** 2n, 115n, 100n, owned),
+        prerequisiteWorkerId: "engineering_manager",
         description: "Engineering Managers produce 2× more.",
         maxOwned: 1,
     },
@@ -69,6 +75,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         name: "Corporate Synergy",
         cost: (owned) =>
             bigintGeometricCost(256n * 1024n ** 2n, 115n, 100n, owned),
+        prerequisiteWorkerId: "director",
         description: "Directors and VPs produce 2× more.",
         maxOwned: 1,
     },
@@ -77,6 +84,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         name: "Executive Retreats",
         cost: (owned) =>
             bigintGeometricCost(8n * 1024n ** 3n, 115n, 100n, owned),
+        prerequisiteWorkerId: "cto",
         description: "CTOs and CEOs produce 2× more.",
         maxOwned: 1,
     },
@@ -84,6 +92,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         id: "golden_parachutes",
         name: "Golden Parachutes",
         cost: (owned) => bigintGeometricCost(1024n ** 5n, 115n, 100n, owned),
+        prerequisiteWorkerId: "board_member",
         description: "Board Members and Chairmen produce 2× more.",
         maxOwned: 1,
     },
@@ -92,6 +101,7 @@ export const UPGRADE_DATA: Upgrade[] = [
         name: "Global Monopoly",
         cost: (owned) =>
             bigintGeometricCost(16n * 1024n ** 4n, 115n, 100n, owned),
+        prerequisiteWorkerId: "conglomerate_owner",
         description: "Conglomerate Owners produce 2× more.",
         maxOwned: 1,
     },

@@ -6,8 +6,13 @@ export function tickCookie(
     gameState: GameState,
     terminal: ITerminal,
 ) {
-    const cookiesThisTick = gameState.cps / 10n;
-    gameState.cookies += cookiesThisTick;
+    const cps = gameState.cps;
+    gameState.cookies += cps / 25n;
+    appState.ui.cookieAccumulator += Number(cps % 25n) / 25;
+    while (appState.ui.cookieAccumulator >= 1) {
+        gameState.cookies += 1n;
+        appState.ui.cookieAccumulator -= 1;
+    }
 
     if (appState.ui.highlightTicks > 0) appState.ui.highlightTicks -= 1;
 

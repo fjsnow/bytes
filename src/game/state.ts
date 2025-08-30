@@ -34,6 +34,7 @@ export interface AppState {
         };
         upgradesShowMaxed: boolean;
         lastClickTime: number;
+        cookieAccumulator: number;
         settings: {
             selectedIndex: number;
             pureBlackBackground: boolean;
@@ -79,6 +80,7 @@ export function createInitialStandaloneAppState(layout: Layout): AppState {
             },
             upgradesShowMaxed: false,
             lastClickTime: 0,
+            cookieAccumulator: 0,
             settings: {
                 selectedIndex: 0,
                 pureBlackBackground: false,
@@ -127,6 +129,7 @@ export function createInitialSSHAppState(
             },
             upgradesShowMaxed: false,
             lastClickTime: 0,
+            cookieAccumulator: 0,
             settings: {
                 selectedIndex: 0,
                 pureBlackBackground: false,

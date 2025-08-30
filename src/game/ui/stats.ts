@@ -8,7 +8,9 @@ export function drawStats(
     gameState: GameState,
     terminal: ITerminal,
 ) {
-    const cookiesText = formatBytes(gameState.cookies);
+    const totalCookies =
+        Number(gameState.cookies) + appState.ui.cookieAccumulator;
+    const cookiesText = formatBytes(totalCookies);
     const cpsText = formatBytes(gameState.cps);
 
     const statsText = cookiesText + "   (" + cpsText + "/s)";

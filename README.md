@@ -10,16 +10,18 @@ If you've never used SSH before, you might need to setup a key first. Any guide 
 ## Playing locally
 
 To play locally
-- Download [Bun](https://bun.sh)
-- Install the dependencies with `bun install`
-- Run `bun run start` to play.
+
+-   Download [Bun](https://bun.sh)
+-   Install the dependencies with `bun install`
+-   Run `bun run start` to play.
 
 ## Hosting a remote server
 
 To host a server
-- Download [Bun](https://bun.sh)
-- Install the dependencies with `bun install`
-- Generate a priv/pub key **for the host** with `ssh-keygen -t rsa -b 4096 -f host_key -N ""`
-- Run `bun run start --server <port>` to host.
+
+-   Download [Bun](https://bun.sh)
+-   Install the dependencies with `bun install`
+-   Generate a priv/pub key **for the host** with `ssh-keygen -t rsa -b 4096 -f host_key -N ""`
+-   Run `bun run start --server <port>` to host.
 
 You can then connect and play `ssh -p <port> localhost`, you may omit the `-p <port>` if you host it on port `22`.

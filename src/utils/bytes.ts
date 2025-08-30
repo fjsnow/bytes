@@ -20,16 +20,16 @@ export function formatBytes(
     if (bytes === 0n || bytes === 0) return "0.0 B";
 
     const base = binary ? 1024 : 1000;
-    const absBytes = typeof bytes === "bigint" ? bytes : BigInt(bytes);
+    const numBytes = typeof bytes === "bigint" ? Number(bytes) : bytes;
 
     let i = 0;
-    let tempBytes = absBytes;
-    while (tempBytes >= BigInt(base) && i < units.length - 1) {
-        tempBytes /= BigInt(base);
+    let tempBytes = numBytes;
+    while (tempBytes >= base && i < units.length - 1) {
+        tempBytes /= base;
         i++;
     }
 
-    const value = Number(absBytes) / base ** i;
+    const value = numBytes / base ** i;
     const roundedValue = Math.round(value * 10) / 10;
 
     let unit = units[i];

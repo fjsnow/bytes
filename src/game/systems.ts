@@ -4,86 +4,84 @@ import { UPGRADE_DATA } from "./data/upgrades";
 import type { ITerminal } from "../core/terminal";
 
 export function recalcCps(gameState: GameState) {
-    let total = 0n;
+    let totalCpsFromWorkers = 0n;
+    const workerCpsContributions: Record<string, bigint> = {};
 
     for (const worker of WORKER_DATA) {
-        const count = gameState.workers[worker.id] || 0;
-        total += BigInt(count) * worker.baseCookiesPerSecond;
+        const count = BigInt(gameState.workers[worker.id] || 0);
+        const contribution = count * worker.baseCookiesPerSecond;
+        workerCpsContributions[worker.id] = contribution;
+        totalCpsFromWorkers += contribution;
     }
 
     for (const upgrade of UPGRADE_DATA) {
         const owned = gameState.upgrades[upgrade.id] || 0;
         if (!owned) continue;
 
-        const ownedBigInt = BigInt(owned);
-
         switch (upgrade.id) {
-            case "mechanical_keyboards":
-                break;
-            case "ergonomic_mice":
-                break;
             case "free_pizza":
-                total += BigInt(gameState.workers["intern"] || 0) * ownedBigInt;
+                totalCpsFromWorkers += workerCpsContributions["intern"] || 0n;
                 break;
-
             case "pair_programming":
-                total +=
-                    BigInt(gameState.workers["junior_dev"] || 0) * ownedBigInt;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["junior_dev"] || 0n;
                 break;
-
             case "agile_methodology":
-                total +=
-                    (BigInt(gameState.workers["senior_dev"] || 0) +
-                        BigInt(gameState.workers["tech_lead"] || 0)) *
-                    ownedBigInt;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["senior_dev"] || 0n;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["tech_lead"] || 0n;
                 break;
-
             case "scrum_masters":
-                total +=
-                    BigInt(gameState.workers["engineering_manager"] || 0) *
-                    ownedBigInt;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["engineering_manager"] || 0n;
                 break;
-
             case "corporate_synergy":
-                total +=
-                    (BigInt(gameState.workers["director"] || 0) +
-                        BigInt(gameState.workers["vp_engineering"] || 0)) *
-                    ownedBigInt;
+                totalCpsFromWorkers += workerCpsContributions["director"] || 0n;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["vp_engineering"] || 0n;
                 break;
-
             case "executive_retreats":
-                total +=
-                    (BigInt(gameState.workers["cto"] || 0) +
-                        BigInt(gameState.workers["ceo"] || 0)) *
-                    ownedBigInt;
+                totalCpsFromWorkers += workerCpsContributions["cto"] || 0n;
+                totalCpsFromWorkers += workerCpsContributions["ceo"] || 0n;
                 break;
-
             case "golden_parachutes":
-                total +=
-                    (BigInt(gameState.workers["board_member"] || 0) +
-                        BigInt(gameState.workers["chairman"] || 0)) *
-                    ownedBigInt;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["board_member"] || 0n;
+                totalCpsFromWorkers += workerCpsContributions["chairman"] || 0n;
                 break;
-
             case "global_monopoly":
-                total +=
-                    BigInt(gameState.workers["conglomerate_owner"] || 0) *
-                    ownedBigInt;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["conglomerate_owner"] || 0n;
                 break;
-
-            case "cloud_infrastructure":
-                total = total * (1n + (1n / 4n) * ownedBigInt);
-                break;
-            case "ai_automation":
-                total = total * (1n + (1n / 2n) * ownedBigInt);
-                break;
-            case "quantum_efficiency":
-                total = total * 2n ** ownedBigInt;
+            default:
                 break;
         }
     }
 
-    gameState.cps = total;
+    for (const upgrade of UPGRADE_DATA) {
+        const owned = gameState.upgrades[upgrade.id] || 0;
+        if (!owned) continue;
+        const ownedBigInt = BigInt(owned);
+
+        switch (upgrade.id) {
+            case "cloud_infrastructure":
+                totalCpsFromWorkers =
+                    (totalCpsFromWorkers * (100n + 25n * ownedBigInt)) / 100n;
+                break;
+            case "ai_automation":
+                totalCpsFromWorkers =
+                    (totalCpsFromWorkers * (100n + 50n * ownedBigInt)) / 100n;
+                break;
+            case "quantum_efficiency":
+                totalCpsFromWorkers = totalCpsFromWorkers * 2n ** ownedBigInt;
+                break;
+            default:
+                break;
+        }
+    }
+
+    gameState.cps = totalCpsFromWorkers;
 }
 
 function getClickDelay(gameState: GameState) {

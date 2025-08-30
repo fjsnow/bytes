@@ -83,8 +83,7 @@ export const UPGRADE_DATA: Upgrade[] = [
     {
         id: "golden_parachutes",
         name: "Golden Parachutes",
-        cost: (owned) =>
-            bigintGeometricCost(256n * 1024n ** 3n, 115n, 100n, owned),
+        cost: (owned) => bigintGeometricCost(1024n ** 5n, 115n, 100n, owned),
         description: "Board Members and Chairmen produce 2× more.",
         maxOwned: 1,
     },
@@ -99,21 +98,21 @@ export const UPGRADE_DATA: Upgrade[] = [
     {
         id: "cloud_infrastructure",
         name: "Cloud Infrastructure",
-        cost: (owned) => 1024n ** 2n * 2n ** BigInt(owned),
+        cost: (owned) => 1024n ** 4n * 1024n ** BigInt(owned),
         description: "All workers produce 25% more.",
         maxOwned: 5,
     },
     {
         id: "ai_automation",
         name: "AI Automation",
-        cost: (owned) => bigintGeometricCost(1024n ** 3n, 250n, 100n, owned),
+        cost: (owned) => 1024n ** 5n * (1024n ** 2n) ** BigInt(owned),
         description: "All workers produce 50% more.",
         maxOwned: 3,
     },
     {
         id: "quantum_efficiency",
         name: "Quantum Efficiency",
-        cost: (owned) => 1024n ** 4n * 3n ** BigInt(owned),
+        cost: (owned) => 1024n ** 8n * 1024n ** BigInt(owned),
         description: "Doubles all production.",
         maxOwned: 1,
     },

@@ -50,7 +50,7 @@ export function drawWorkers(
 ) {
     const { height } = terminal.getSize();
     const focused = appState.ui.focus === "workers";
-    const availableHeight = height - 4;
+    const availableHeight = height - 5;
     const maxWorkers = Math.floor(availableHeight / 4);
 
     let scrollbarX = 1;
@@ -105,7 +105,7 @@ export function moveWorkerSelection(
     delta: number,
 ) {
     const { height } = terminal.getSize();
-    const maxVisible = Math.floor((height - 3) / 4);
+    const maxVisible = Math.floor((height - 5) / 4);
     appState.ui.workers.selectedIndex += delta;
     if (appState.ui.workers.selectedIndex < 0)
         appState.ui.workers.selectedIndex = 0;

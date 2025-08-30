@@ -38,6 +38,7 @@ export interface AppState {
         cookieAccumulator: number;
         settings: {
             selectedIndex: number;
+            scrollOffset: number;
             pureBlackBackground: boolean;
             reduceFallingBits: boolean;
             disableFallingBits: boolean;
@@ -85,6 +86,7 @@ export function createInitialStandaloneAppState(layout: Layout, debug: boolean =
             cookieAccumulator: 0,
             settings: {
                 selectedIndex: 0,
+                scrollOffset: 0,
                 pureBlackBackground: false,
                 reduceFallingBits: false,
                 disableFallingBits: false,
@@ -136,6 +138,7 @@ export function createInitialSSHAppState(
             cookieAccumulator: 0,
             settings: {
                 selectedIndex: 0,
+                scrollOffset: 0,
                 pureBlackBackground: false,
                 reduceFallingBits: false,
                 disableFallingBits: false,

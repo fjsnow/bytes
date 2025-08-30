@@ -87,7 +87,7 @@ export function drawUpgrades(
 ) {
     const { width, height } = terminal.getSize();
     const focused = appState.ui.focus === "upgrades";
-    const availableHeight = height - 4;
+    const availableHeight = height - 5;
     const maxPerUpgrade = 5;
     const maxUpgrades = Math.floor(availableHeight / maxPerUpgrade);
 
@@ -177,7 +177,7 @@ export function ensureUpgradeVisible(
 ) {
     const { height } = terminal.getSize();
     const maxPerUpgrade = 5;
-    const maxVisible = Math.floor((height - 3) / maxPerUpgrade);
+    const maxVisible = Math.floor((height - 5) / maxPerUpgrade);
 
     const filtered = getFilteredUpgrades(appState, gameState);
     const sel = appState.ui.upgrades.selectedIndex;

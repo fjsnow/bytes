@@ -7,6 +7,11 @@ import {
     LINKING_TOKEN_COOLDOWN_MS,
     LINKING_TOKEN_DURATION_MS,
 } from "../account";
+import {
+    calculateScrollbar,
+    calculateVisibleRange,
+    ensureVisibleVariable,
+} from "../../utils/scrollbar";
 
 export type SettingsItem =
     | {
@@ -18,7 +23,7 @@ export type SettingsItem =
           label: string;
           description?: string;
       }
-    | { type: "header"; label: string }
+    | { type: "linkedKeysHeader" }
     | { type: "linkedKey"; pubkey: string; isCurrentKey: boolean }
     | {
           type: "action";
@@ -31,25 +36,23 @@ export function getSettingsItemHeight(
     item: SettingsItem,
     appState: AppState,
     panelWidth: number,
-    isSelected: boolean,
 ): number {
     switch (item.type) {
-        case "header":
-            return item.label ? 1 : 0;
+        case "linkedKeysHeader":
+            return 1;
         case "toggle": {
             let height = 2;
             if (item.description) {
                 const descLines = wrapText(item.description, panelWidth - 4);
                 height += descLines.length;
             }
-            height += 1;
             return height;
         }
         case "linkedKey":
             return 1;
         case "action": {
             if (item.id === "generateToken") {
-                let height = 1;
+                let height = 2;
                 if (item.description) {
                     const descLines = wrapText(
                         item.description,
@@ -63,9 +66,8 @@ export function getSettingsItemHeight(
                     Date.now() - appState.ui.settings.linkingTokenGeneratedAt <
                         LINKING_TOKEN_DURATION_MS;
                 if (tokenActive) {
-                    height += 3;
+                    height += 4;
                 }
-                height += 1;
                 return height;
             } else if (item.id === "deleteAllData") {
                 let height = 1;
@@ -116,7 +118,7 @@ export function getSettingsItems(appState: AppState): SettingsItem[] {
             label: "Generate linking token",
             description: "Link another SSH key to your account.",
         });
-        items.push({ type: "header", label: "Linked SSH keys" });
+        items.push({ type: "linkedKeysHeader" });
         for (const key of appState.ui.settings.linkedKeys) {
             items.push({
                 type: "linkedKey",
@@ -139,21 +141,14 @@ export function getSettingsItems(appState: AppState): SettingsItem[] {
 function getGapAfter(
     index: number,
     allItems: SettingsItem[],
-    itemHeights: number[],
+    itemHeight: number,
 ): number {
-    if (index >= allItems.length - 1 || itemHeights[index] === 0) {
+    if (index >= allItems.length - 1 || itemHeight === 0) {
         return 0;
     }
 
-    const currentItem = allItems[index];
     const nextItem = allItems[index + 1];
-
-    if (
-        (currentItem.type === "header" &&
-            nextItem.type === "linkedKey" &&
-            currentItem.label) ||
-        (currentItem.type === "linkedKey" && nextItem.type === "linkedKey")
-    ) {
+    if (nextItem.type === "linkedKey") {
         return 0;
     }
 
@@ -169,33 +164,20 @@ export function drawSettings(
 
     const maxPanelWidth = 70;
     const panelWidth = Math.min(maxPanelWidth, width - 5);
-    const panelHeight = height - 4;
-
-    const { x: panelStartX, y: panelStartY } = terminal.getCenterForSize(
-        panelWidth,
-        panelHeight,
-    );
+    const panelY = 3;
+    const panelHeight = height - 5;
 
     let contentStartX: number;
     let pointerX: number;
     let scrollbarX: number;
 
     if (appState.layout === "large" || appState.layout === "medium") {
+        const { x: panelStartX } = terminal.getCenterForSize(panelWidth, 0);
         contentStartX = panelStartX + 4;
         pointerX = panelStartX + 2;
         scrollbarX = panelStartX;
-        terminal.draw(
-            panelStartX,
-            panelStartY - 1,
-            "[S]ettings",
-            chalk.white.bold,
-        );
-        terminal.draw(
-            panelStartX + 11,
-            panelStartY - 1,
-            "j(↓) / k(↑)",
-            chalk.gray,
-        );
+        terminal.draw(panelStartX, panelY - 1, "[S]ettings", chalk.white.bold);
+        terminal.draw(panelStartX + 11, panelY - 1, "j(↓) / k(↑)", chalk.gray);
     } else {
         contentStartX = 7;
         pointerX = 5;
@@ -205,76 +187,29 @@ export function drawSettings(
     }
 
     const allItems = getSettingsItems(appState);
-
     appState.ui.settings.selectedIndex = Math.max(
         0,
-        allItems.length > 0
-            ? Math.min(appState.ui.settings.selectedIndex, allItems.length - 1)
-            : 0,
+        Math.min(appState.ui.settings.selectedIndex, allItems.length - 1),
     );
 
-    const itemHeights: number[] = [];
-    let totalContentHeight = 0;
-
-    for (let i = 0; i < allItems.length; i++) {
-        const height = getSettingsItemHeight(
-            allItems[i],
-            appState,
-            panelWidth,
-            i === appState.ui.settings.selectedIndex,
-        );
-        itemHeights.push(height);
-    }
-
-    for (let i = 0; i < allItems.length; i++) {
-        totalContentHeight += itemHeights[i];
-        if (i < allItems.length - 1) {
-            totalContentHeight += getGapAfter(i, allItems, itemHeights);
-        }
-    }
+    const itemHeights = allItems.map((item, i) => {
+        const h = getSettingsItemHeight(item, appState, panelWidth);
+        return h + getGapAfter(i, allItems, h);
+    });
 
     ensureSettingsVisible(appState, terminal);
 
-    let cumulativeHeight = 0;
-    let startItemIndex = 0;
-    let endItemIndex = allItems.length - 1;
+    const { startIndex, endIndex } = calculateVisibleRange(
+        itemHeights,
+        panelHeight,
+        appState.ui.settings.scrollOffset,
+    );
 
-    for (let i = 0; i < allItems.length; i++) {
-        if (cumulativeHeight >= appState.ui.settings.scrollOffset) {
-            startItemIndex = i;
-            break;
-        }
-        cumulativeHeight +=
-            itemHeights[i] + getGapAfter(i, allItems, itemHeights);
-    }
-
-    let visibleHeightUsed = 0;
-    for (let i = startItemIndex; i < allItems.length; i++) {
-        const itemHeight = itemHeights[i];
-        const gap = getGapAfter(i, allItems, itemHeights);
-
-        if (visibleHeightUsed + itemHeight > panelHeight) {
-            endItemIndex = i - 1;
-            break;
-        }
-        visibleHeightUsed += itemHeight;
-
-        if (visibleHeightUsed + gap > panelHeight) {
-            endItemIndex = i;
-            break;
-        }
-        visibleHeightUsed += gap;
-    }
-
-    let currentScreenDrawingY = appState.layout === "small" ? 3 : panelStartY;
-
-    for (
-        let i = startItemIndex;
-        i <= endItemIndex && i < allItems.length;
-        i++
-    ) {
+    let yOffset = 0;
+    for (let i = startIndex; i <= endIndex; i++) {
         const item = allItems[i];
         const isSelected = i === appState.ui.settings.selectedIndex;
+        let itemContentDrawY = panelY + yOffset;
 
         const pointerChar =
             isSelected &&
@@ -283,19 +218,15 @@ export function drawSettings(
                 ? ">"
                 : " ";
 
-        let itemContentDrawY = currentScreenDrawingY;
-
         switch (item.type) {
             case "toggle": {
                 const checked = appState.ui.settings[item.id];
-
                 terminal.draw(
                     pointerX,
                     itemContentDrawY,
                     pointerChar,
                     chalk.white,
                 );
-
                 terminal.draw(
                     contentStartX,
                     itemContentDrawY,
@@ -303,47 +234,39 @@ export function drawSettings(
                     isSelected ? chalk.white.bold : chalk.white,
                 );
                 itemContentDrawY += 1;
-
                 if (item.description) {
                     const descLines = wrapText(
                         item.description,
                         panelWidth - 4,
                     );
-                    for (let l = 0; l < descLines.length; l++) {
-                        if (itemContentDrawY >= height - 1) break;
+                    for (const line of descLines) {
                         terminal.draw(
                             contentStartX,
                             itemContentDrawY,
-                            descLines[l],
+                            line,
                             chalk.gray.italic,
                         );
-                        itemContentDrawY += 1;
+                        itemContentDrawY++;
                     }
                 }
-
                 if (isSelected) {
-                    const toggleHintText = checked ? "[d]isable" : "[e]nable";
-                    const toggleHintColor = checked ? chalk.red : chalk.green;
-                    terminal.draw(
-                        contentStartX,
-                        itemContentDrawY,
-                        toggleHintText,
-                        toggleHintColor,
-                    );
+                    const hint = checked ? "[d]isable" : "[e]nable";
+                    const color = checked ? chalk.red : chalk.green;
+                    terminal.draw(contentStartX, itemContentDrawY, hint, color);
                 }
-                itemContentDrawY += 1;
                 break;
             }
-            case "header": {
-                if (item.label) {
-                    terminal.draw(
-                        contentStartX,
-                        itemContentDrawY,
-                        item.label,
-                        chalk.white,
-                    );
-                    itemContentDrawY++;
-                }
+            case "linkedKeysHeader": {
+                const selectedItem =
+                    allItems[appState.ui.settings.selectedIndex];
+                terminal.draw(
+                    contentStartX,
+                    itemContentDrawY,
+                    "Linked SSH Keys",
+                    selectedItem?.type === "linkedKey"
+                        ? chalk.white.bold
+                        : chalk.white,
+                );
                 break;
             }
             case "linkedKey": {
@@ -353,26 +276,17 @@ export function drawSettings(
                     pointerChar,
                     chalk.white,
                 );
-
                 let currentX = contentStartX;
-
                 terminal.draw(currentX, itemContentDrawY, "-", chalk.white);
                 currentX += 2;
-
-                const actionTextMinWidth = 25;
-                const minSpaceForAction = 2 + actionTextMinWidth;
-                const availableWidthForRedaction =
-                    panelWidth - (currentX - contentStartX) - minSpaceForAction;
                 const redactSize = Math.max(
                     1,
-                    Math.floor(availableWidthForRedaction / 2) - 1,
+                    Math.floor((panelWidth - 40) / 2),
                 );
                 const displayKey = redactPlayerKey(item.pubkey, redactSize);
                 const keyColor = item.isCurrentKey ? chalk.green : chalk.gray;
-
                 terminal.draw(currentX, itemContentDrawY, displayKey, keyColor);
                 currentX += displayKey.length;
-
                 if (item.isCurrentKey) {
                     terminal.draw(
                         currentX,
@@ -380,11 +294,7 @@ export function drawSettings(
                         ` (current key)`,
                         chalk.gray.italic,
                     );
-                    currentX += ` (current key)`.length;
                 }
-
-                let actionX = currentX + 1;
-
                 if (
                     isSelected &&
                     (item.pubkey !== appState.ssh?.accountKey ||
@@ -395,34 +305,20 @@ export function drawSettings(
                         appState.ui.settings.keyToDelete === item.pubkey
                     ) {
                         terminal.draw(
-                            actionX,
-                            itemContentDrawY,
-                            "are you sure? ",
+                            contentStartX,
+                            itemContentDrawY + 1,
+                            "are you sure? [y]es [n]o",
                             chalk.red.bold,
-                        );
-                        terminal.draw(
-                            actionX + 14,
-                            itemContentDrawY,
-                            "[y]es ",
-                            chalk.red,
-                        );
-                        terminal.draw(
-                            actionX + 20,
-                            itemContentDrawY,
-                            "[n]o",
-                            chalk.green,
                         );
                     } else {
                         terminal.draw(
-                            actionX,
-                            itemContentDrawY,
+                            contentStartX,
+                            itemContentDrawY + 1,
                             `[r]emove`,
                             chalk.red,
                         );
                     }
                 }
-
-                itemContentDrawY++;
                 break;
             }
             case "action": {
@@ -432,7 +328,6 @@ export function drawSettings(
                     pointerChar,
                     chalk.white,
                 );
-
                 terminal.draw(
                     contentStartX,
                     itemContentDrawY,
@@ -440,24 +335,21 @@ export function drawSettings(
                     isSelected ? chalk.white.bold : chalk.white,
                 );
                 itemContentDrawY++;
-
                 if (item.description) {
                     const descLines = wrapText(
                         item.description,
                         panelWidth - 4,
                     );
-                    for (let l = 0; l < descLines.length; l++) {
-                        if (itemContentDrawY >= height - 1) break;
+                    for (const line of descLines) {
                         terminal.draw(
                             contentStartX,
                             itemContentDrawY,
-                            descLines[l],
+                            line,
                             chalk.gray.italic,
                         );
                         itemContentDrawY++;
                     }
                 }
-
                 if (item.id === "generateToken") {
                     const tokenActive =
                         appState.ui.settings.linkingToken &&
@@ -465,12 +357,11 @@ export function drawSettings(
                         Date.now() -
                             appState.ui.settings.linkingTokenGeneratedAt <
                             LINKING_TOKEN_DURATION_MS;
-
-                    const now = Date.now();
-                    const lastGenerated =
-                        appState.ui.settings.linkingTokenGeneratedAt || 0;
                     const onCooldown =
-                        now - lastGenerated < LINKING_TOKEN_COOLDOWN_MS;
+                        Date.now() -
+                            (appState.ui.settings.linkingTokenGeneratedAt ||
+                                0) <
+                        LINKING_TOKEN_COOLDOWN_MS;
 
                     if (tokenActive) {
                         itemContentDrawY++;
@@ -480,45 +371,23 @@ export function drawSettings(
                             ` ssh b.fjsn.io link ${appState.ui.settings.linkingToken!} `,
                             chalk.black.bold.bgWhite,
                         );
-                        itemContentDrawY++;
-                        itemContentDrawY++;
-                        const remainingSecondsTotal = Math.ceil(
+                        itemContentDrawY += 2;
+                        const remaining = Math.ceil(
                             (LINKING_TOKEN_DURATION_MS -
                                 (Date.now() -
                                     appState.ui.settings
                                         .linkingTokenGeneratedAt!)) /
                                 1000,
                         );
-                        const remainingMinutes = Math.floor(
-                            remainingSecondsTotal / 60,
-                        );
-                        const remainingSeconds = remainingSecondsTotal % 60;
-
-                        let timeString = "";
-                        if (remainingMinutes > 0) {
-                            timeString += `${remainingMinutes}m `;
-                        }
-                        timeString += `${remainingSeconds}s`;
-
                         terminal.draw(
                             contentStartX,
                             itemContentDrawY,
-                            `Expires in: ${timeString}`,
+                            `Expires in: ${Math.floor(remaining / 60)}m ${remaining % 60}s`,
                             chalk.gray.italic,
                         );
                         itemContentDrawY++;
                     } else if (appState.ui.settings.linkingToken) {
-                        if (itemContentDrawY >= height - 1) break;
                         appState.ui.settings.linkingToken = null;
-                        appState.ui.settings.linkingTokenGeneratedAt =
-                            undefined;
-                        terminal.draw(
-                            contentStartX,
-                            itemContentDrawY,
-                            "Token expired. Generate a new one.",
-                            chalk.red.italic,
-                        );
-                        itemContentDrawY++;
                     }
 
                     if (isSelected) {
@@ -530,15 +399,10 @@ export function drawSettings(
                                 chalk.red,
                             );
                         } else if (onCooldown) {
-                            const remaining = Math.ceil(
-                                (LINKING_TOKEN_COOLDOWN_MS -
-                                    (now - lastGenerated)) /
-                                    1000,
-                            );
                             terminal.draw(
                                 contentStartX,
                                 itemContentDrawY,
-                                `[g]enerate (cooldown: ${remaining}s)`,
+                                `[g]enerate (cooldown)`,
                                 chalk.gray,
                             );
                         } else {
@@ -549,34 +413,14 @@ export function drawSettings(
                                 chalk.green,
                             );
                         }
-                    } else {
-                        terminal.draw(
-                            contentStartX,
-                            itemContentDrawY,
-                            "",
-                            chalk.white,
-                        );
                     }
-                    itemContentDrawY++;
                 } else if (item.id === "deleteAllData") {
                     if (appState.ui.settings.isDeletingAccount) {
                         terminal.draw(
                             contentStartX,
                             itemContentDrawY,
-                            "are you sure? ",
+                            "are you sure? [y]es [n]o",
                             chalk.red.bold,
-                        );
-                        terminal.draw(
-                            contentStartX + 14,
-                            itemContentDrawY,
-                            "[y]es ",
-                            chalk.red,
-                        );
-                        terminal.draw(
-                            contentStartX + 20,
-                            itemContentDrawY,
-                            "[n]o",
-                            chalk.green,
                         );
                     } else if (isSelected) {
                         terminal.draw(
@@ -585,47 +429,29 @@ export function drawSettings(
                             "[d]elete",
                             chalk.red,
                         );
-                    } else {
-                        terminal.draw(
-                            contentStartX,
-                            itemContentDrawY,
-                            "",
-                            chalk.white,
-                        );
                     }
-                    itemContentDrawY++;
                 }
                 break;
             }
         }
-
-        const gap = getGapAfter(i, allItems, itemHeights);
-        itemContentDrawY += gap;
-
-        currentScreenDrawingY = itemContentDrawY;
+        yOffset += itemHeights[i];
     }
 
-    if (totalContentHeight > panelHeight) {
-        const barHeight = panelHeight;
-        const scrollbarHeight = Math.max(
-            1,
-            Math.floor((barHeight * panelHeight) / totalContentHeight),
-        );
-        const maxScroll = totalContentHeight - panelHeight;
-        const scrollRatio =
-            maxScroll > 0 ? appState.ui.settings.scrollOffset / maxScroll : 0;
-        const scrollbarY =
-            (appState.layout === "small" ? 3 : panelStartY) +
-            Math.floor((barHeight - scrollbarHeight) * scrollRatio);
-
-        for (
-            let y = appState.layout === "small" ? 3 : panelStartY;
-            y < (appState.layout === "small" ? 3 : panelStartY) + barHeight;
-            y++
-        ) {
-            if (y >= scrollbarY && y < scrollbarY + scrollbarHeight) {
-                terminal.draw(scrollbarX, y, "┃", chalk.gray);
-            }
+    const visibleItems = endIndex - startIndex + 1;
+    const scrollbar = calculateScrollbar(
+        allItems.length,
+        visibleItems,
+        appState.ui.settings.scrollOffset,
+        panelHeight,
+    );
+    if (scrollbar.shouldShow) {
+        for (let y = 0; y < scrollbar.height; y++) {
+            terminal.draw(
+                scrollbarX,
+                panelY + scrollbar.y + y,
+                "┃",
+                chalk.gray,
+            );
         }
     }
 
@@ -642,56 +468,18 @@ export function ensureSettingsVisible(
     const allItems = getSettingsItems(appState);
     const maxPanelWidth = 70;
     const panelWidth = Math.min(maxPanelWidth, width - 5);
-    const panelHeight = height - 4;
+    const panelHeight = height - 5;
 
-    const itemHeights: number[] = [];
-    let totalContentHeight = 0;
+    const itemHeights = allItems.map((item, i) => {
+        const h = getSettingsItemHeight(item, appState, panelWidth);
+        return h + getGapAfter(i, allItems, h);
+    });
 
-    for (let i = 0; i < allItems.length; i++) {
-        const height = getSettingsItemHeight(
-            allItems[i],
-            appState,
-            panelWidth,
-            i === appState.ui.settings.selectedIndex,
-        );
-        itemHeights.push(height);
-    }
-
-    for (let i = 0; i < allItems.length; i++) {
-        totalContentHeight += itemHeights[i];
-        if (i < allItems.length - 1) {
-            totalContentHeight += getGapAfter(i, allItems, itemHeights);
-        }
-    }
-
-    if (totalContentHeight <= panelHeight) {
-        appState.ui.settings.scrollOffset = 0;
-        return;
-    }
-
-    const sel = appState.ui.settings.selectedIndex;
-    let cumulativeHeight = 0;
-
-    for (let i = 0; i < sel; i++) {
-        cumulativeHeight +=
-            itemHeights[i] + getGapAfter(i, allItems, itemHeights);
-    }
-
-    const selectedItemTop = cumulativeHeight;
-    const selectedItemBottom = cumulativeHeight + itemHeights[sel];
-
-    const currentScrollOffset = appState.ui.settings.scrollOffset;
-
-    if (selectedItemTop < currentScrollOffset) {
-        appState.ui.settings.scrollOffset = selectedItemTop;
-    } else if (selectedItemBottom > currentScrollOffset + panelHeight) {
-        appState.ui.settings.scrollOffset = selectedItemBottom - panelHeight;
-    }
-
-    const maxScroll = Math.max(0, totalContentHeight - panelHeight);
-    appState.ui.settings.scrollOffset = Math.max(
-        0,
-        Math.min(appState.ui.settings.scrollOffset, maxScroll),
+    appState.ui.settings.scrollOffset = ensureVisibleVariable(
+        appState.ui.settings.selectedIndex,
+        appState.ui.settings.scrollOffset,
+        itemHeights,
+        panelHeight,
     );
 }
 
@@ -705,35 +493,29 @@ export function moveSettingsSelection(
 
     newSelectedIndex = Math.max(
         0,
-        allItems.length > 0
-            ? Math.min(newSelectedIndex, allItems.length - 1)
-            : 0,
+        Math.min(newSelectedIndex, allItems.length - 1),
     );
 
     while (
+        newSelectedIndex > 0 &&
+        newSelectedIndex < allItems.length - 1 &&
+        allItems[newSelectedIndex].type === "linkedKeysHeader"
+    ) {
+        newSelectedIndex += delta > 0 ? 1 : -1;
+    }
+    newSelectedIndex = Math.max(
+        0,
+        Math.min(newSelectedIndex, allItems.length - 1),
+    );
+
+    if (
         newSelectedIndex >= 0 &&
         newSelectedIndex < allItems.length &&
-        allItems[newSelectedIndex].type === "header"
+        allItems[newSelectedIndex].type === "linkedKeysHeader"
     ) {
-        newSelectedIndex += delta;
-        newSelectedIndex = Math.max(
-            0,
-            allItems.length > 0
-                ? Math.min(newSelectedIndex, allItems.length - 1)
-                : 0,
-        );
+        newSelectedIndex = appState.ui.settings.selectedIndex;
     }
 
-    if (allItems[newSelectedIndex]?.type === "header") {
-        while (
-            newSelectedIndex >= 0 &&
-            allItems[newSelectedIndex].type === "header"
-        ) {
-            newSelectedIndex--;
-        }
-        newSelectedIndex = Math.max(0, newSelectedIndex);
-    }
     appState.ui.settings.selectedIndex = newSelectedIndex;
-
     ensureSettingsVisible(appState, terminal);
 }

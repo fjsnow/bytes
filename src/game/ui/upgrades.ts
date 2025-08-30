@@ -4,6 +4,9 @@ import { formatBytes } from "../../utils/bytes";
 import { wrapText } from "../../utils/text";
 import type { AppState, GameState } from "../state";
 import { UPGRADE_DATA, type Upgrade } from "../data/upgrades";
+import { calculateScrollbar, ensureVisible } from "../../utils/scrollbar";
+
+const UPGRADE_ITEM_HEIGHT = 5;
 
 export function getFilteredUpgrades(appState: AppState, gameState: GameState) {
     return UPGRADE_DATA.filter((u) => {
@@ -87,9 +90,9 @@ export function drawUpgrades(
 ) {
     const { width, height } = terminal.getSize();
     const focused = appState.ui.focus === "upgrades";
-    const availableHeight = height - 5;
-    const maxPerUpgrade = 5;
-    const maxUpgrades = Math.floor(availableHeight / maxPerUpgrade);
+    const panelY = 3;
+    const panelHeight = height - 5;
+    const maxVisible = Math.floor(panelHeight / UPGRADE_ITEM_HEIGHT);
 
     let panelX = 1;
     let panelWidth = 44;
@@ -127,11 +130,11 @@ export function drawUpgrades(
 
     const filtered = getFilteredUpgrades(appState, gameState);
     const start = appState.ui.upgrades.scrollOffset;
-    const end = Math.min(start + maxUpgrades, filtered.length);
+    const end = Math.min(start + maxVisible, filtered.length);
 
     for (let i = start; i < end; i++) {
         const upgrade = filtered[i];
-        const y = 3 + (i - start) * maxPerUpgrade;
+        const y = panelY + (i - start) * UPGRADE_ITEM_HEIGHT;
         drawUpgrade(
             terminal,
             panelX,
@@ -143,23 +146,21 @@ export function drawUpgrades(
         );
     }
 
-    const barHeight = height - 5;
-    const total = filtered.length;
-    if (total > maxUpgrades) {
-        const scrollbarHeight = Math.max(
-            1,
-            Math.floor((barHeight * maxUpgrades) / total),
-        );
-        const maxScroll = total - maxUpgrades;
-        const scrollRatio =
-            maxScroll > 0 ? appState.ui.upgrades.scrollOffset / maxScroll : 0;
-        const scrollbarY =
-            3 + Math.floor((barHeight - scrollbarHeight) * scrollRatio);
+    const scrollbar = calculateScrollbar(
+        filtered.length,
+        maxVisible,
+        appState.ui.upgrades.scrollOffset,
+        panelHeight,
+    );
 
-        for (let y = 3; y < 3 + barHeight; y++) {
-            if (y >= scrollbarY && y < scrollbarY + scrollbarHeight) {
-                terminal.draw(scrollbarX, y, "┃", chalk.gray);
-            }
+    if (scrollbar.shouldShow) {
+        for (let y = 0; y < scrollbar.height; y++) {
+            terminal.draw(
+                scrollbarX,
+                panelY + scrollbar.y + y,
+                "┃",
+                chalk.gray,
+            );
         }
     }
 
@@ -176,25 +177,16 @@ export function ensureUpgradeVisible(
     terminal: ITerminal,
 ) {
     const { height } = terminal.getSize();
-    const maxPerUpgrade = 5;
-    const maxVisible = Math.floor((height - 5) / maxPerUpgrade);
-
+    const panelHeight = height - 5;
+    const maxVisible = Math.floor(panelHeight / UPGRADE_ITEM_HEIGHT);
     const filtered = getFilteredUpgrades(appState, gameState);
-    const sel = appState.ui.upgrades.selectedIndex;
-    let scroll = appState.ui.upgrades.scrollOffset;
 
-    if (sel < scroll) {
-        scroll = sel;
-    } else if (sel >= scroll + maxVisible) {
-        scroll = sel - maxVisible + 1;
-    }
-
-    const maxScroll = Math.max(0, filtered.length - maxVisible);
-    if (scroll > maxScroll) {
-        scroll = maxScroll;
-    }
-
-    appState.ui.upgrades.scrollOffset = Math.max(0, scroll);
+    appState.ui.upgrades.scrollOffset = ensureVisible(
+        appState.ui.upgrades.selectedIndex,
+        appState.ui.upgrades.scrollOffset,
+        maxVisible,
+        filtered.length,
+    );
 }
 
 export function moveUpgradeSelection(
@@ -204,11 +196,9 @@ export function moveUpgradeSelection(
     gameState: GameState,
 ) {
     const filtered = getFilteredUpgrades(appState, gameState);
-    appState.ui.upgrades.selectedIndex += delta;
-    if (appState.ui.upgrades.selectedIndex < 0)
-        appState.ui.upgrades.selectedIndex = 0;
-    if (appState.ui.upgrades.selectedIndex >= filtered.length)
-        appState.ui.upgrades.selectedIndex = filtered.length - 1;
+    let newIndex = appState.ui.upgrades.selectedIndex + delta;
+    newIndex = Math.max(0, Math.min(newIndex, filtered.length - 1));
+    appState.ui.upgrades.selectedIndex = newIndex;
 
     ensureUpgradeVisible(appState, gameState, terminal);
 }

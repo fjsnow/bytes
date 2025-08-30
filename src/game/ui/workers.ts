@@ -3,6 +3,9 @@ import type { ITerminal } from "../../core/terminal";
 import { formatBytes } from "../../utils/bytes";
 import type { AppState, GameState } from "../state";
 import { WORKER_DATA, type Worker } from "../data/workers";
+import { calculateScrollbar, ensureVisible } from "../../utils/scrollbar";
+
+const WORKER_ITEM_HEIGHT = 4;
 
 function drawWorker(
     terminal: ITerminal,
@@ -50,10 +53,10 @@ export function drawWorkers(
 ) {
     const { height } = terminal.getSize();
     const focused = appState.ui.focus === "workers";
-    const availableHeight = height - 5;
-    const maxWorkers = Math.floor(availableHeight / 4);
-
-    let scrollbarX = 1;
+    const panelY = 3;
+    const panelHeight = height - 5;
+    const scrollbarX = 1;
+    const maxVisible = Math.floor(panelHeight / WORKER_ITEM_HEIGHT);
 
     terminal.draw(
         1,
@@ -64,11 +67,11 @@ export function drawWorkers(
     if (focused) terminal.draw(11, 2, "j(↓) / k(↑)", chalk.gray);
 
     const start = appState.ui.workers.scrollOffset;
-    const end = Math.min(start + maxWorkers, WORKER_DATA.length);
+    const end = Math.min(start + maxVisible, WORKER_DATA.length);
 
     for (let i = start; i < end; i++) {
         const worker = WORKER_DATA[i];
-        const y = 3 + (i - start) * 4;
+        const y = panelY + (i - start) * WORKER_ITEM_HEIGHT;
         drawWorker(
             terminal,
             y,
@@ -78,23 +81,21 @@ export function drawWorkers(
         );
     }
 
-    const barHeight = height - 5;
-    const total = WORKER_DATA.length;
-    if (total > maxWorkers) {
-        const scrollbarHeight = Math.max(
-            1,
-            Math.floor((barHeight * maxWorkers) / total),
-        );
-        const maxScroll = total - maxWorkers;
-        const scrollRatio =
-            maxScroll > 0 ? appState.ui.workers.scrollOffset / maxScroll : 0;
-        const scrollbarY =
-            3 + Math.floor((barHeight - scrollbarHeight) * scrollRatio);
+    const scrollbar = calculateScrollbar(
+        WORKER_DATA.length,
+        maxVisible,
+        appState.ui.workers.scrollOffset,
+        panelHeight,
+    );
 
-        for (let y = 3; y < 3 + barHeight; y++) {
-            if (y >= scrollbarY && y < scrollbarY + scrollbarHeight) {
-                terminal.draw(scrollbarX, y, "┃", chalk.gray);
-            }
+    if (scrollbar.shouldShow) {
+        for (let y = 0; y < scrollbar.height; y++) {
+            terminal.draw(
+                scrollbarX,
+                panelY + scrollbar.y + y,
+                "┃",
+                chalk.gray,
+            );
         }
     }
 }
@@ -105,20 +106,16 @@ export function moveWorkerSelection(
     delta: number,
 ) {
     const { height } = terminal.getSize();
-    const maxVisible = Math.floor((height - 5) / 4);
-    appState.ui.workers.selectedIndex += delta;
-    if (appState.ui.workers.selectedIndex < 0)
-        appState.ui.workers.selectedIndex = 0;
-    if (appState.ui.workers.selectedIndex >= WORKER_DATA.length)
-        appState.ui.workers.selectedIndex = WORKER_DATA.length - 1;
-    if (appState.ui.workers.selectedIndex < appState.ui.workers.scrollOffset) {
-        appState.ui.workers.scrollOffset = appState.ui.workers.selectedIndex;
-    }
-    if (
-        appState.ui.workers.selectedIndex >=
-        appState.ui.workers.scrollOffset + maxVisible
-    ) {
-        appState.ui.workers.scrollOffset =
-            appState.ui.workers.selectedIndex - maxVisible + 1;
-    }
+    const maxVisible = Math.floor((height - 5) / WORKER_ITEM_HEIGHT);
+
+    let newIndex = appState.ui.workers.selectedIndex + delta;
+    newIndex = Math.max(0, Math.min(newIndex, WORKER_DATA.length - 1));
+    appState.ui.workers.selectedIndex = newIndex;
+
+    appState.ui.workers.scrollOffset = ensureVisible(
+        newIndex,
+        appState.ui.workers.scrollOffset,
+        maxVisible,
+        WORKER_DATA.length,
+    );
 }

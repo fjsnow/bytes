@@ -87,7 +87,7 @@ export function drawUpgrades(
 ) {
     const { width, height } = terminal.getSize();
     const focused = appState.ui.focus === "upgrades";
-    const availableHeight = height - 3;
+    const availableHeight = height - 4;
     const maxPerUpgrade = 5;
     const maxUpgrades = Math.floor(availableHeight / maxPerUpgrade);
 
@@ -143,7 +143,7 @@ export function drawUpgrades(
         );
     }
 
-    const barHeight = height - 4;
+    const barHeight = height - 5;
     const total = filtered.length;
     if (total > maxUpgrades) {
         const scrollbarHeight = Math.max(

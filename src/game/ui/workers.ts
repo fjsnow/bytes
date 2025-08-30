@@ -50,7 +50,7 @@ export function drawWorkers(
 ) {
     const { height } = terminal.getSize();
     const focused = appState.ui.focus === "workers";
-    const availableHeight = height - 3;
+    const availableHeight = height - 4;
     const maxWorkers = Math.floor(availableHeight / 4);
 
     let scrollbarX = 1;
@@ -78,7 +78,7 @@ export function drawWorkers(
         );
     }
 
-    const barHeight = height - 4;
+    const barHeight = height - 5;
     const total = WORKER_DATA.length;
     if (total > maxWorkers) {
         const scrollbarHeight = Math.max(

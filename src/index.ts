@@ -14,9 +14,10 @@ import { createInitialStandaloneAppState } from "./game/state";
 import { logger } from "./utils/logger";
 
 const isServerMode = process.argv.includes("--server");
+const isDebugMode = process.argv.includes("--debug");
 
 async function runSinglePlayer() {
-    const appState = createInitialStandaloneAppState("medium");
+    const appState = createInitialStandaloneAppState("medium", isDebugMode);
     const terminal: ITerminal = new CliTerminal(appState);
 
     const gameSession = new GameSession(terminal, appState);
@@ -54,7 +55,7 @@ async function main() {
         }
 
         const { startSshServer } = await import("./server");
-        await startSshServer(port);
+        await startSshServer(port, isDebugMode);
     } else {
         logger.info("Starting in single-player CLI mode.");
         await runSinglePlayer();

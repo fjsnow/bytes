@@ -9,6 +9,7 @@ export interface AppState {
     screen: Screen;
     layout: Layout;
     mode: Mode;
+    debug: boolean;
     ssh: {
         accountId: number;
         accountKey: string;
@@ -60,11 +61,12 @@ export interface GameState {
     prestige: number;
 }
 
-export function createInitialStandaloneAppState(layout: Layout): AppState {
+export function createInitialStandaloneAppState(layout: Layout, debug: boolean = false): AppState {
     return {
         screen: "main",
         layout,
         mode: "standalone",
+        debug,
         ssh: null,
         ui: {
             focus: layout === "small" ? "main" : "workers",
@@ -104,11 +106,13 @@ export function createInitialSSHAppState(
     db: Database,
     layout: Layout,
     isNewAccount: boolean = false,
+    debug: boolean = false,
 ): AppState {
     return {
         screen: "main",
         layout,
         mode: "ssh",
+        debug,
         ssh: {
             accountId,
             accountKey,

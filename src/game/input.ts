@@ -1,4 +1,4 @@
-import { clickCookie, buyWorker, buyUpgrade } from "./systems";
+import { clickCookie, buyWorker, buyUpgrade, skipTime } from "./systems";
 import type { AppState, GameState, Focus, Layout, Screen } from "./state";
 import type { ITerminal } from "../core/terminal";
 import { WORKER_DATA } from "./data/workers";
@@ -56,6 +56,19 @@ export function cycleFocus(appState: AppState) {
 
 export async function handleGameInput(session: GameSession, key: string) {
     const { appState, gameState, terminal } = session;
+
+    if (appState.debug) {
+        if (key === "0") {
+            skipTime(gameState, 1);
+            return;
+        } else if (key === "1") {
+            skipTime(gameState, 10);
+            return;
+        } else if (key === "2") {
+            skipTime(gameState, 60);
+            return;
+        }
+    }
 
     if (key === "\t") {
         cycleFocus(appState);

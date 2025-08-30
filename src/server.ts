@@ -79,6 +79,7 @@ sharedDb.run(`
 `);
 
 const activeGameSessions = new Map<number, GameSession>();
+let serverDebugMode = false;
 
 async function disconnectSession(
     oldSession: GameSession,
@@ -269,6 +270,7 @@ async function handleShellRequest(
             sharedDb,
             "medium",
             isNewAccount,
+            serverDebugMode,
         );
         appState.ui.settings.linkedKeys = linkedKeys;
 
@@ -426,7 +428,9 @@ async function handleLinkingTokenExec(
     client.end();
 }
 
-export async function startSshServer(port: number) {
+export async function startSshServer(port: number, debug: boolean = false) {
+    serverDebugMode = debug;
+    logger.info(`Starting SSH server in ${debug ? 'debug' : 'normal'} mode`);
     startFileLogging();
     cleanupExpiredLinkingTokens(sharedDb);
 

@@ -154,3 +154,9 @@ export function buyUpgrade(id: string, gameState: GameState) {
     }
     return false;
 }
+
+export function skipTime(gameState: GameState, minutes: number) {
+    const seconds = BigInt(minutes * 60);
+    const cookiesToAdd = gameState.cps * seconds;
+    gameState.cookies += cookiesToAdd;
+}

@@ -12,6 +12,7 @@ import { drawWorkers } from "./ui/workers";
 import { drawSettings } from "./ui/settings";
 import { recalcCps } from "./systems";
 import { drawWatermark } from "./ui/watermark";
+import { drawDebug } from "./ui/debug";
 import { logger, redactPlayerKey } from "../utils/logger";
 import { handleGameInput } from "./input";
 
@@ -83,6 +84,10 @@ export class GameSession {
             drawWorkers(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "upgrades") {
             drawUpgrades(this.appState, this.gameState, this.terminal);
+        }
+
+        if (this.appState.debug) {
+            drawDebug(this.appState, this.terminal);
         }
 
         this.terminal.render();

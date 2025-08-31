@@ -357,6 +357,7 @@ async function handleLinkingTokenExec(
         )}`,
     );
 
+    let outputMessage = "";
     const tokenData = getLinkingTokenData(sharedDb, token);
 
     if (tokenData && tokenData.expires_at > Date.now()) {
@@ -368,87 +369,59 @@ async function handleLinkingTokenExec(
         );
         if (existingLinkedAccountId) {
             if (existingLinkedAccountId === targetAccountId) {
-                stream.write(
-                    generateMessage(
-                        "info",
-                        `Your key is already linked to that account.\nConnect normally to play.`,
-                    ),
+                outputMessage = generateMessage(
+                    "info",
+                    `Your key is already linked to that account.\nConnect normally to play.`,
                 );
-                logger.info(
-                    `PlayerKey ${redactPlayerKey(
-                        currentAccountKey,
-                    )} is already linked to target account ${targetAccountId}.`,
-                );
-                stream.end();
-                return;
             } else {
-                stream.write(
-                    generateMessage(
-                        "error",
-                        `This key is already linked to another account. Please detach it first then try again.`,
-                    ),
-                );
-                logger.info(
-                    `PlayerKey ${redactPlayerKey(currentAccountKey)} attempted to link to account ${targetAccountId} but is already linked to account ${existingLinkedAccountId}.`,
-                );
-                stream.end();
-                return;
-            }
-        }
-
-        if (countLinkedKeys(sharedDb, targetAccountId) >= 8) {
-            stream.write(
-                generateMessage(
+                outputMessage = generateMessage(
                     "error",
-                    `That account has reached the maximum of 8 linked keys. Please unlink another key first then try again.`,
-                ),
-            );
-            stream.end();
-            return;
-        }
-
-        linkKeyToAccount(sharedDb, currentAccountKey, targetAccountId);
-        sharedDb.run("DELETE FROM linking_tokens WHERE token = ?", [token]);
-
-        const session = activeGameSessions.get(targetAccountId);
-        if (session) {
-            const oldItems = getSettingsItems(session.appState);
-            const headerIndex = oldItems.findIndex(
-                (item) => item.type === "linkedKeysHeader",
-            );
-
-            session.appState.ui.settings.linkingToken = null;
-            session.appState.ui.settings.linkedKeys = getLinkedKeysForAccount(
-                sharedDb,
-                targetAccountId,
-            );
-            if (session.appState.ui.settings.selectedIndex > headerIndex) {
-                session.appState.ui.settings.selectedIndex += 1;
+                    `This key is already linked to another account. Please detach it first then try again.`,
+                );
             }
-        }
+        } else if (countLinkedKeys(sharedDb, targetAccountId) >= 8) {
+            outputMessage = generateMessage(
+                "error",
+                `That account has reached the maximum of 8 linked keys. Please unlink another key first then try again.`,
+            );
+        } else {
+            linkKeyToAccount(sharedDb, currentAccountKey, targetAccountId);
+            sharedDb.run("DELETE FROM linking_tokens WHERE token = ?", [token]);
 
-        stream.write(
-            generateMessage(
+            const session = activeGameSessions.get(targetAccountId);
+            if (session) {
+                const oldItems = getSettingsItems(session.appState);
+                const headerIndex = oldItems.findIndex(
+                    (item) => item.type === "linkedKeysHeader",
+                );
+
+                session.appState.ui.settings.linkingToken = null;
+                session.appState.ui.settings.linkedKeys =
+                    getLinkedKeysForAccount(sharedDb, targetAccountId);
+                if (session.appState.ui.settings.selectedIndex > headerIndex) {
+                    session.appState.ui.settings.selectedIndex += 1;
+                }
+            }
+
+            outputMessage = generateMessage(
                 "success",
                 `Your key is now linked to that account!\nConnect normally to play.`,
-            ),
-        );
+            );
+        }
     } else {
-        stream.write(
-            generateMessage(
-                "error",
-                "Invalid or expired linking token.\nPlease generate a new one in the game and try again.",
-            ),
-        );
-        logger.warn(
-            `Failed linking attempt for playerKey ${redactPlayerKey(
-                currentAccountKey,
-            )} with token ${token}. Token invalid or expired.`,
+        outputMessage = generateMessage(
+            "error",
+            "Invalid or expired linking token.\nPlease generate a new one in the game and try again.",
         );
     }
 
-    stream.end();
-    client.end();
+    stream.write(outputMessage, () => {
+        setTimeout(() => {
+            stream.end(() => {
+                client.end();
+            });
+        }, 100);
+    });
 }
 
 async function handleExportExec(
@@ -456,9 +429,23 @@ async function handleExportExec(
     client: SshClientConnection,
     accountKey: string,
 ) {
+    stream.on("error", (err) => {
+        logger.error(
+            `Stream error during export for key ${redactPlayerKey(accountKey)}:`,
+            err,
+        );
+        if (!stream.writableEnded) {
+            stream.end(() => {
+                client.end();
+            });
+        }
+    });
+
     logger.info(
         `Client requesting export for key ${redactPlayerKey(accountKey)}`,
     );
+
+    let outputData = "";
 
     try {
         const { accountId } = getOrCreateAccountId(sharedDb, accountKey);
@@ -470,35 +457,30 @@ async function handleExportExec(
             | undefined;
 
         if (!accountDataRow) {
-            stream.write(
-                `No save data found for this account.\r\n`,
-            );
-            stream.end();
-            client.end();
-            return;
+            outputData = `No save data found for this account.\r\n`;
+        } else {
+            const saveData = {
+                progress: JSON.parse(accountDataRow.progress),
+                settings: JSON.parse(accountDataRow.settings),
+            };
+            outputData = JSON.stringify(saveData, null, 2) + "\r\n";
+            logger.info(`Exported save data for account ${accountId}`);
         }
-
-        const saveData = {
-            progress: JSON.parse(accountDataRow.progress),
-            settings: JSON.parse(accountDataRow.settings),
-        };
-
-        const data = JSON.stringify(saveData, null, 2) + "\r\n";
-        stream.write(data, () => {
-            // Ensure data is flushed before ending
-            stream.end(() => {
-                client.end();
-            });
-        });
-        logger.info(`Exported save data for account ${accountId}`);
     } catch (e) {
-        logger.error(`Error exporting data for account key ${redactPlayerKey(accountKey)}:`, e);
-        stream.write(`Error exporting save data.\r\n`, () => {
+        logger.error(
+            `Error exporting data for account key ${redactPlayerKey(accountKey)}:`,
+            e,
+        );
+        outputData = `Error exporting save data.\r\n`;
+    }
+
+    stream.write(outputData, () => {
+        setTimeout(() => {
             stream.end(() => {
                 client.end();
             });
-        });
-    }
+        }, 100);
+    });
 }
 
 export async function startSshServer(port: number, debug: boolean = false) {

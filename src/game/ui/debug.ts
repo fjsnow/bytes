@@ -8,9 +8,9 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
 
     const commandText = ` [<] ${appState.timeMultiplier}x [>] | [0] 1min | [1] 10min | [2] 1hr `;
     const { x: commandX } = terminal.getCenterForSize(commandText.length, 0);
-    terminal.draw(commandX, height - 2, commandText, chalk.bgRed.white.bold);
+    terminal.draw(commandX, height - 4, commandText, chalk.bgRed.white.bold);
 
     const debugText = ` fps: ${getFps()} | ${width}x${height} | ${appState.layout} | ${appState.screen} | ${appState.ui.focus} `;
     const { x: debugX } = terminal.getCenterForSize(debugText.length, 0);
-    terminal.draw(debugX, height - 1, debugText, chalk.bgRed.white.bold);
+    terminal.draw(debugX, height - 3, debugText, chalk.bgRed.white.bold);
 }

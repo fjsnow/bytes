@@ -483,16 +483,22 @@ async function handleExportExec(
             settings: JSON.parse(accountDataRow.settings),
         };
 
-        stream.write(JSON.stringify(saveData, null, 2));
-        stream.write("\r\n");
+        const data = JSON.stringify(saveData, null, 2) + "\r\n";
+        stream.write(data, () => {
+            // Ensure data is flushed before ending
+            stream.end(() => {
+                client.end();
+            });
+        });
         logger.info(`Exported save data for account ${accountId}`);
     } catch (e) {
         logger.error(`Error exporting data for account key ${redactPlayerKey(accountKey)}:`, e);
-        stream.write(`Error exporting save data.\r\n`);
+        stream.write(`Error exporting save data.\r\n`, () => {
+            stream.end(() => {
+                client.end();
+            });
+        });
     }
-
-    stream.end();
-    client.end();
 }
 
 export async function startSshServer(port: number, debug: boolean = false) {

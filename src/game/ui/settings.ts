@@ -1,4 +1,4 @@
-import type { AppState } from "../state";
+import type { AppState, GameState } from "../state";
 import type { ITerminal } from "../../core/terminal";
 import { redactPlayerKey } from "../../utils/logger";
 import { wrapText } from "../../utils/text";
@@ -167,7 +167,11 @@ function getGapAfter(
     return 1;
 }
 
-export function drawSettings(appState: AppState, terminal: ITerminal) {
+export function drawSettings(
+    appState: AppState,
+    _gameState: GameState,
+    terminal: ITerminal,
+) {
     const { width, height } = terminal.getSize();
 
     const maxPanelWidth = 70;

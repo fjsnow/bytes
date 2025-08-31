@@ -37,6 +37,10 @@ function runSinglePlayer() {
     };
 
     process.on("exit", cleanup);
+    process.on("SIGINT", () => {
+        cleanup();
+        process.exit(0);
+    });
 }
 
 async function main() {

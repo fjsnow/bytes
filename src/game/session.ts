@@ -60,6 +60,9 @@ export class GameSession {
         tickCookie(this.appState, this.gameState, this.terminal);
         tickBits(this.appState, this.terminal);
 
+        this.gameState.ticksPlayed++;
+        this.gameState.ticksPlayedThisPrestige++;
+
         if (this.appState.ui.highlightTicks > 0) {
             this.appState.ui.highlightTicks -= 1;
         }
@@ -82,7 +85,7 @@ export class GameSession {
                 this.renderSmallMain();
             }
         } else if (this.appState.screen === "settings") {
-            drawSettings(this.appState, this.terminal);
+            drawSettings(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "workers") {
             drawWorkers(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "upgrades") {

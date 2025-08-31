@@ -7,10 +7,16 @@ export function tickCookie(
     terminal: ITerminal,
 ) {
     const cps = gameState.cps;
-    gameState.cookies += cps / 25n;
+    const mainIncrement = cps / 25n;
+    gameState.cookies += mainIncrement;
+    gameState.cookiesEarnedThisPrestige += mainIncrement;
+    gameState.totalCookiesEarned += mainIncrement;
+
     appState.ui.cookieAccumulator += Number(cps % 25n) / 25;
     while (appState.ui.cookieAccumulator >= 1) {
         gameState.cookies += 1n;
+        gameState.cookiesEarnedThisPrestige += 1n;
+        gameState.totalCookiesEarned += 1n;
         appState.ui.cookieAccumulator -= 1;
     }
 

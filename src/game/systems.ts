@@ -3,6 +3,7 @@ import { WORKER_DATA } from "./data/workers";
 import { UPGRADE_DATA } from "./data/upgrades";
 import type { ITerminal } from "../core/terminal";
 import { createInitialGameState } from "./state";
+import { TPS } from "../core/ticker";
 
 export function recalcCps(gameState: GameState) {
     let totalCpsFromWorkers = 0n;
@@ -134,6 +135,8 @@ export function clickCookie(
         100n;
 
     gameState.cookies += clickGain;
+    gameState.cookiesEarnedThisPrestige += clickGain;
+    gameState.totalCookiesEarned += clickGain;
     appState.ui.highlightTicks = 10;
 
     if (appState.ui.settings.fallingBits !== "disabled") {
@@ -207,6 +210,10 @@ export function skipTime(gameState: GameState, minutes: number) {
     const seconds = BigInt(minutes * 60);
     const cookiesToAdd = gameState.cps * seconds;
     gameState.cookies += cookiesToAdd;
+    gameState.cookiesEarnedThisPrestige += cookiesToAdd;
+    gameState.totalCookiesEarned += cookiesToAdd;
+    gameState.ticksPlayed += minutes * 60 * TPS;
+    gameState.ticksPlayedThisPrestige += minutes * 60 * TPS;
     calculatePrestigeCost(gameState);
 }
 
@@ -232,6 +239,8 @@ export function prestige(gameState: GameState, appState: AppState) {
         gameState.cps = initial.cps;
         gameState.workers = initial.workers;
         gameState.upgrades = initial.upgrades;
+        gameState.cookiesEarnedThisPrestige = 0n;
+        gameState.ticksPlayedThisPrestige = 0;
         calculatePrestigeCost(gameState);
         gameState.prestigeMultiplier = 2 ** gameState.prestige;
         return true;

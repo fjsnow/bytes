@@ -62,6 +62,10 @@ export interface GameState {
     prestige: number;
     prestigeCost: bigint;
     prestigeMultiplier: number;
+    ticksPlayed: number;
+    ticksPlayedThisPrestige: number;
+    cookiesEarnedThisPrestige: bigint;
+    totalCookiesEarned: bigint;
 }
 
 export function createInitialStandaloneAppState(
@@ -168,5 +172,9 @@ export function createInitialGameState(): GameState {
         prestige: 0,
         prestigeCost: 0n,
         prestigeMultiplier: 1,
+        ticksPlayed: 0,
+        ticksPlayedThisPrestige: 0,
+        cookiesEarnedThisPrestige: 0n,
+        totalCookiesEarned: 0n,
     };
 }

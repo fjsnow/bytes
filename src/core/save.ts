@@ -2,6 +2,7 @@ import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
 import type { GameState, AppState } from "../game/state";
 import { logger } from "../utils/logger";
 import { createInitialGameState } from "../game/state";
+import { recalcCps } from "../game/systems";
 
 const SAVE_FILE = "save.json";
 const LOCK_FILE = "save.json.lock";
@@ -47,11 +48,17 @@ export function initSaveSystem(
             const initialGameState = createInitialGameState();
             const initialProgress = JSON.stringify({
                 cookies: initialGameState.cookies.toString(),
-                cps: initialGameState.cps.toString(),
                 workers: initialGameState.workers,
                 upgrades: initialGameState.upgrades,
                 prestige: initialGameState.prestige,
                 prestigeMultiplier: initialGameState.prestigeMultiplier,
+                ticksPlayed: initialGameState.ticksPlayed,
+                ticksPlayedThisPrestige:
+                    initialGameState.ticksPlayedThisPrestige,
+                cookiesEarnedThisPrestige:
+                    initialGameState.cookiesEarnedThisPrestige.toString(),
+                totalCookiesEarned:
+                    initialGameState.totalCookiesEarned.toString(),
             });
             const initialSettings = JSON.stringify({
                 pureBlackBackground: appState.ui.settings.pureBlackBackground,
@@ -71,12 +78,21 @@ export function initSaveSystem(
         try {
             const parsedProgress = JSON.parse(accountDataRow.progress);
             gameState.cookies = BigInt(parsedProgress.cookies);
-            gameState.cps = BigInt(parsedProgress.cps);
             Object.assign(gameState.workers, parsedProgress.workers);
             Object.assign(gameState.upgrades, parsedProgress.upgrades);
             gameState.prestige = parsedProgress.prestige ?? 0;
             gameState.prestigeMultiplier =
                 parsedProgress.prestigeMultiplier ?? 1;
+            gameState.ticksPlayed = parsedProgress.ticksPlayed ?? 0;
+            gameState.ticksPlayedThisPrestige =
+                parsedProgress.ticksPlayedThisPrestige ?? 0;
+            gameState.cookiesEarnedThisPrestige = BigInt(
+                parsedProgress.cookiesEarnedThisPrestige ?? "0",
+            );
+            gameState.totalCookiesEarned = BigInt(
+                parsedProgress.totalCookiesEarned ?? "0",
+            );
+            recalcCps(gameState);
 
             const parsedSettings = JSON.parse(accountDataRow.settings);
             if (parsedSettings) {
@@ -118,12 +134,21 @@ export function initSaveSystem(
             try {
                 const parsed = JSON.parse(readFileSync(SAVE_FILE, "utf8"));
                 gameState.cookies = BigInt(parsed.progress.cookies);
-                gameState.cps = BigInt(parsed.progress.cps);
                 Object.assign(gameState.workers, parsed.progress.workers);
                 Object.assign(gameState.upgrades, parsed.progress.upgrades);
                 gameState.prestige = parsed.progress.prestige ?? 0;
                 gameState.prestigeMultiplier =
                     parsed.progress.prestigeMultiplier ?? 1;
+                gameState.ticksPlayed = parsed.progress.ticksPlayed ?? 0;
+                gameState.ticksPlayedThisPrestige =
+                    parsed.progress.ticksPlayedThisPrestige ?? 0;
+                gameState.cookiesEarnedThisPrestige = BigInt(
+                    parsed.progress.cookiesEarnedThisPrestige ?? "0",
+                );
+                gameState.totalCookiesEarned = BigInt(
+                    parsed.progress.totalCookiesEarned ?? "0",
+                );
+                recalcCps(gameState);
 
                 if (parsed.settings) {
                     appState.ui.settings.pureBlackBackground =
@@ -142,11 +167,15 @@ export function initSaveSystem(
 
         const progressToSave = {
             cookies: gameState.cookies.toString(),
-            cps: gameState.cps.toString(),
             workers: gameState.workers,
             upgrades: gameState.upgrades,
             prestige: gameState.prestige,
             prestigeMultiplier: gameState.prestigeMultiplier,
+            ticksPlayed: gameState.ticksPlayed,
+            ticksPlayedThisPrestige: gameState.ticksPlayedThisPrestige,
+            cookiesEarnedThisPrestige:
+                gameState.cookiesEarnedThisPrestige.toString(),
+            totalCookiesEarned: gameState.totalCookiesEarned.toString(),
         };
 
         const settingsToSave = {

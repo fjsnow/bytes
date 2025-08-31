@@ -72,9 +72,6 @@ export class GameSession {
 
         this.drawNavBar();
         drawFooter(this.gameState, this.terminal);
-        if (this.appState.debug) {
-            drawDebug(this.appState, this.terminal);
-        }
 
         if (this.appState.screen === "main") {
             if (this.appState.layout === "large") {
@@ -90,6 +87,10 @@ export class GameSession {
             drawWorkers(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "upgrades") {
             drawUpgrades(this.appState, this.gameState, this.terminal);
+        }
+
+        if (this.appState.debug) {
+            drawDebug(this.appState, this.terminal);
         }
 
         this.terminal.render();

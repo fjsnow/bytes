@@ -85,6 +85,17 @@ export async function handleGameInput(session: GameSession, key: string) {
 
             session.render();
             return;
+        } else if (key === "<" || key === ",") {
+            appState.timeMultiplier = Math.max(1, appState.timeMultiplier / 2);
+            session.render();
+            return;
+        } else if (key === ">" || key === ".") {
+            appState.timeMultiplier = Math.min(
+                128,
+                appState.timeMultiplier * 2,
+            );
+            session.render();
+            return;
         }
     }
 

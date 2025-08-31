@@ -10,6 +10,7 @@ export interface AppState {
     layout: Layout;
     mode: Mode;
     debug: boolean;
+    timeMultiplier: number;
     ssh: {
         accountId: number;
         accountKey: string;
@@ -77,6 +78,7 @@ export function createInitialStandaloneAppState(
         layout,
         mode: "standalone",
         debug,
+        timeMultiplier: 1,
         ssh: null,
         ui: {
             focus: layout === "small" ? "main" : "workers",
@@ -124,6 +126,7 @@ export function createInitialSSHAppState(
         layout,
         mode: "ssh",
         debug,
+        timeMultiplier: 1,
         ssh: {
             accountId,
             accountKey,

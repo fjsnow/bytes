@@ -7,12 +7,15 @@ export function tickCookie(
     terminal: ITerminal,
 ) {
     const cps = gameState.cps;
-    const mainIncrement = cps / 25n;
-    gameState.cookies += mainIncrement;
-    gameState.cookiesEarnedThisPrestige += mainIncrement;
-    gameState.totalCookiesEarned += mainIncrement;
+    const baseIncrement = Number(cps) / 25 * appState.timeMultiplier;
+    const integerIncrement = BigInt(Math.floor(baseIncrement));
+    const fractionalIncrement = baseIncrement - Math.floor(baseIncrement);
 
-    appState.ui.cookieAccumulator += Number(cps % 25n) / 25;
+    gameState.cookies += integerIncrement;
+    gameState.cookiesEarnedThisPrestige += integerIncrement;
+    gameState.totalCookiesEarned += integerIncrement;
+
+    appState.ui.cookieAccumulator += fractionalIncrement;
     while (appState.ui.cookieAccumulator >= 1) {
         gameState.cookies += 1n;
         gameState.cookiesEarnedThisPrestige += 1n;
@@ -20,7 +23,7 @@ export function tickCookie(
         appState.ui.cookieAccumulator -= 1;
     }
 
-    if (appState.ui.highlightTicks > 0) appState.ui.highlightTicks -= 1;
+    if (appState.ui.highlightTicks > 0) appState.ui.highlightTicks -= appState.timeMultiplier;
 
     if (gameState.cps > 0n && appState.ui.settings.fallingBits !== "disabled") {
         const expectedBits = Math.log1p(Number(gameState.cps)) / Math.log(1.5);

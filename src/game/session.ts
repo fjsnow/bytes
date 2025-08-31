@@ -60,12 +60,9 @@ export class GameSession {
         tickCookie(this.appState, this.gameState, this.terminal);
         tickBits(this.appState, this.terminal);
 
-        this.gameState.ticksPlayed++;
-        this.gameState.ticksPlayedThisPrestige++;
+        this.gameState.ticksPlayed += this.appState.timeMultiplier;
+        this.gameState.ticksPlayedThisPrestige += this.appState.timeMultiplier;
 
-        if (this.appState.ui.highlightTicks > 0) {
-            this.appState.ui.highlightTicks -= 1;
-        }
         calculatePrestigeCost(this.gameState);
     }
 

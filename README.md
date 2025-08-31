@@ -15,7 +15,7 @@ To play locally
 -   Install the dependencies with `bun install`
 -   Run `bun run start` to play.
 
-To first export your data from the remote server, run `ssh b.fjsn.io export > save.json`
+If you had previously started playing on the remote server, run `ssh b.fjsn.io export > save.json` to export your data. This will override any local save.
 
 ## Hosting a remote server
 

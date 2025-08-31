@@ -3,6 +3,9 @@ import type { AppState } from "../game/state";
 import type { Duplex } from "stream";
 import chalk from "chalk";
 
+const MAX_SSH_WIDTH = 400;
+const MAX_SSH_HEIGHT = 120;
+
 type Cell = {
     char: string;
     color: ((s: string) => string) | null;
@@ -246,6 +249,8 @@ export class SshTerminal implements ITerminal {
     private stream: Duplex;
     private width: number;
     private height: number;
+    private actualTerminalWidth: number;
+    private actualTerminalHeight: number;
     private prevBuffer: Cell[][];
     private nextBuffer: Cell[][];
     private initialized: boolean = false;
@@ -262,8 +267,10 @@ export class SshTerminal implements ITerminal {
     ) {
         this.stream = stream;
         this.appState = appState;
-        this.width = initialWidth;
-        this.height = initialHeight;
+        this.actualTerminalWidth = initialWidth;
+        this.actualTerminalHeight = initialHeight;
+        this.width = Math.min(initialWidth, MAX_SSH_WIDTH);
+        this.height = Math.min(initialHeight, MAX_SSH_HEIGHT);
         this.prevBuffer = this.makeBuffer(this.width, this.height);
         this.nextBuffer = this.makeBuffer(this.width, this.height);
         this.clientConnection = clientConnection;
@@ -347,8 +354,10 @@ export class SshTerminal implements ITerminal {
     }
 
     public handleResize = (w: number, h: number) => {
-        this.width = w;
-        this.height = h;
+        this.actualTerminalWidth = w;
+        this.actualTerminalHeight = h;
+        this.width = Math.min(w, MAX_SSH_WIDTH);
+        this.height = Math.min(h, MAX_SSH_HEIGHT);
         this.prevBuffer = this.makeBuffer(this.width, this.height);
         this.clear(true);
         this.refreshLayout();
@@ -371,9 +380,15 @@ export class SshTerminal implements ITerminal {
         if (full) {
             this.stream.write(ansiEscapes.clearScreen);
             if (this.appState.ui.settings.pureBlackBackground) {
+                const offsetX = Math.floor(
+                    (this.actualTerminalWidth - this.width) / 2,
+                );
+                const offsetY = Math.floor(
+                    (this.actualTerminalHeight - this.height) / 2,
+                );
                 for (let y = 0; y < this.height; y++) {
                     this.stream.write(
-                        ansiEscapes.cursorTo(0, y) +
+                        ansiEscapes.cursorTo(offsetX, y + offsetY) +
                             chalk.bgBlack(" ".repeat(this.width)),
                     );
                 }
@@ -405,6 +420,11 @@ export class SshTerminal implements ITerminal {
     }
 
     public render() {
+        const offsetX = Math.floor((this.actualTerminalWidth - this.width) / 2);
+        const offsetY = Math.floor(
+            (this.actualTerminalHeight - this.height) / 2,
+        );
+
         for (let y = 0; y < this.height; y++) {
             let nextRow = "";
             let prevRow = "";
@@ -436,11 +456,13 @@ export class SshTerminal implements ITerminal {
             let currentRow = nextRow;
 
             if (currentRow !== prevRow) {
-                this.stream.write(ansiEscapes.cursorTo(0, y) + currentRow);
+                this.stream.write(
+                    ansiEscapes.cursorTo(offsetX, y + offsetY) + currentRow,
+                );
                 this.prevBuffer[y] = this.nextBuffer[y].map((c) => ({ ...c }));
             }
         }
-        this.stream.write(ansiEscapes.cursorTo(0, this.height));
+        this.stream.write(ansiEscapes.cursorTo(offsetX, this.height + offsetY));
     }
 
     public getSize() {

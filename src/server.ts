@@ -47,6 +47,7 @@ try {
 const HOST = "0.0.0.0";
 const KEEP_ALIVE_INTERVAL = 60_000;
 const KEEP_ALIVE_COUNT_MAX = 3;
+const MAX_SESSIONS_PER_IP = 4;
 
 type SshClientConnection = import("ssh2").Connection;
 
@@ -80,6 +81,7 @@ sharedDb.run(`
 `);
 
 const activeGameSessions = new Map<number, GameSession>();
+const ipToSessions = new Map<string, Set<GameSession>>();
 let serverDebugMode = false;
 
 async function disconnectSession(
@@ -105,6 +107,9 @@ async function disconnectSession(
             logger.info(
                 `Old session for account ${accountId} confirmed closed.`,
             );
+            activeGameSessions.delete(accountId);
+            unregisterTickerSession(oldSession);
+            unregisterRendererSession(oldSession);
             resolve();
         });
     });
@@ -112,6 +117,7 @@ async function disconnectSession(
 
 function handleClientConnection(client: SshClientConnection) {
     logger.info("Incoming connection..");
+    const clientIp = (client as any)._sock.remoteAddress;
     let accountKey: string | null = null;
     let accountUsername: string | null = null;
     let authenticated: boolean = false;
@@ -150,7 +156,13 @@ function handleClientConnection(client: SshClientConnection) {
 
             client.on("session", (accept) => {
                 const session = accept();
-                handleSession(session, client, accountUsername!, accountKey!);
+                handleSession(
+                    session,
+                    client,
+                    accountUsername!,
+                    accountKey!,
+                    clientIp,
+                );
             });
         })
         .on("end", () => {
@@ -170,6 +182,7 @@ function handleSession(
     client: SshClientConnection,
     username: string,
     accountKey: string,
+    clientIp: string,
 ) {
     let gameSession: GameSession | null = null;
     let ptyCols = 80;
@@ -199,6 +212,7 @@ function handleSession(
                 accountKey,
                 ptyCols,
                 ptyRows,
+                clientIp,
             );
             if (newGameSession) {
                 gameSession = newGameSession;
@@ -214,6 +228,14 @@ function handleSession(
                     activeGameSessions.delete(
                         gameSession!.appState.ssh!.accountId,
                     );
+
+                    const sessions = ipToSessions.get(clientIp);
+                    if (sessions) {
+                        sessions.delete(gameSession!);
+                        if (sessions.size === 0) {
+                            ipToSessions.delete(clientIp);
+                        }
+                    }
                 });
             }
         } catch (e) {
@@ -255,9 +277,22 @@ async function handleShellRequest(
     accountKey: string,
     ptyCols: number,
     ptyRows: number,
+    clientIp: string,
 ): Promise<GameSession | null> {
     let gameSession: GameSession | null = null;
     try {
+        const currentSessions = ipToSessions.get(clientIp);
+        if (currentSessions && currentSessions.size >= MAX_SESSIONS_PER_IP) {
+            stream.write(
+                generateMessage(
+                    "error",
+                    "Too many sessions from this IP address.",
+                ),
+            );
+            stream.end();
+            return null;
+        }
+
         const { accountId, isNewAccount } = getOrCreateAccountId(
             sharedDb,
             accountKey,
@@ -305,6 +340,11 @@ async function handleShellRequest(
         registerTickerSession(gameSession);
         registerRendererSession(gameSession);
         activeGameSessions.set(accountId, gameSession);
+
+        if (!ipToSessions.has(clientIp)) {
+            ipToSessions.set(clientIp, new Set());
+        }
+        ipToSessions.get(clientIp)!.add(gameSession);
 
         logger.info(`Game session started for account ${accountId}.`);
         return gameSession;

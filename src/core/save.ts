@@ -3,6 +3,7 @@ import type { GameState, AppState } from "../game/state";
 import { logger } from "../utils/logger";
 import { createInitialGameState } from "../game/state";
 import { recalcCps } from "../game/systems";
+import { generateMessage } from "../utils/messages";
 
 const SAVE_FILE = "save.json";
 const LOCK_FILE = "save.json.lock";
@@ -109,13 +110,13 @@ export function initSaveSystem(
     } else {
         if (existsSync(LOCK_FILE)) {
             try {
-                process.stderr.write(
-                    "\n" +
-                        "  Oh no! Your local save is currently in use." +
-                        "  If this is a mistake, run 'rm " +
-                        LOCK_FILE +
-                        "' and try again.\n" +
-                        "\n",
+                console.error(
+                    generateMessage(
+                        "error",
+                        "Your local save is currently in use. If this is a mistake, run 'rm " +
+                            LOCK_FILE +
+                            "' and try again.",
+                    ).slice(0, -2),
                 );
                 return null;
             } catch (e: any) {

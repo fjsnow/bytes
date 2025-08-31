@@ -125,15 +125,15 @@ export const UPGRADE_DATA: Upgrade[] = [
     {
         id: "universal_compiler",
         name: "Universal Compiler",
-        cost: (_owned) => 16n * 1024n ** 6n,
-        description: "Unlocks even more advanced production methods.",
+        cost: (_owned) => 128n * 1024n ** 6n,
+        description: "Increase the efficiency of all workers by 2x.",
         maxOwned: 1,
         prerequisitePrestige: 5,
     },
     {
         id: "hyperspace_optimization",
         name: "Hyperspace Optimization",
-        cost: (_owned) => 512n * 1024n ** 6n,
+        cost: (_owned) => 4n * 1024n ** 7n,
         description: "Multiplies all production by 2x.",
         maxOwned: 1,
         prerequisitePrestige: 5,

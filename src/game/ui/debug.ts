@@ -48,7 +48,7 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
     const { x } = terminal.getCenterForSize(paddedDebugText.length, 0);
     terminal.draw(
         x,
-        terminal.getSize().height - 2,
+        terminal.getSize().height - 1,
         paddedDebugText,
         chalk.bgRed.white.bold,
     );

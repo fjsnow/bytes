@@ -97,8 +97,14 @@ export function recalcCps(gameState: GameState) {
                 totalCpsFromWorkers =
                     (totalCpsFromWorkers * (100n + 50n * ownedBigInt)) / 100n;
                 break;
-            case "quantum_efficiency":
+            case "quantum_computing":
                 totalCpsFromWorkers = totalCpsFromWorkers * 2n ** ownedBigInt;
+                break;
+            case "universal_compiler":
+                totalCpsFromWorkers = totalCpsFromWorkers * 3n ** ownedBigInt;
+                break;
+            case "hyperspace_optimization":
+                totalCpsFromWorkers = totalCpsFromWorkers * 5n ** ownedBigInt;
                 break;
             default:
                 break;
@@ -242,7 +248,7 @@ export function prestige(gameState: GameState, appState: AppState) {
         gameState.cookiesEarnedThisPrestige = 0n;
         gameState.ticksPlayedThisPrestige = 0;
         calculatePrestigeCost(gameState);
-        gameState.prestigeMultiplier = 2 ** gameState.prestige;
+        gameState.prestigeMultiplier = gameState.prestige + 1;
         return true;
     }
     return false;

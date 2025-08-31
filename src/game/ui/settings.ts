@@ -1,7 +1,9 @@
 import type { AppState, GameState } from "../state";
 import type { ITerminal } from "../../core/terminal";
 import { redactPlayerKey } from "../../utils/logger";
-import { wrapText } from "../../utils/text";
+import { wrapText, formatTime } from "../../utils/text";
+import { formatBytes } from "../../utils/bytes";
+import { TPS } from "../../core/ticker";
 import chalk from "chalk";
 import {
     LINKING_TOKEN_COOLDOWN_MS,
@@ -169,7 +171,7 @@ function getGapAfter(
 
 export function drawSettings(
     appState: AppState,
-    _gameState: GameState,
+    gameState: GameState,
     terminal: ITerminal,
 ) {
     const { width, height } = terminal.getSize();
@@ -177,7 +179,7 @@ export function drawSettings(
     const maxPanelWidth = 70;
     const panelWidth = Math.min(maxPanelWidth, width - 5);
     const panelY = 3;
-    const panelHeight = height - 5;
+    const panelHeight = height - 6;
 
     let contentStartX: number;
     let pointerX: number;
@@ -516,10 +518,29 @@ export function drawSettings(
         }
     }
 
-    const id = appState.ssh?.accountId.toString() || "offline";
-    const { x } = terminal.getCenterForSize(("account id: " + id).length, 0);
-    terminal.draw(x, height - 2, "account id: ", chalk.gray);
-    terminal.draw(x + 12, height - 2, id, chalk.white);
+    const accountId = appState.ssh?.accountId.toString() || "offline";
+    const totalBytes = formatBytes(gameState.totalCookiesEarned);
+    const timePlayed = formatTime(gameState.ticksPlayed / TPS);
+    const visibleLength =
+        "id: ".length +
+        accountId.length +
+        " | bytes baked: ".length +
+        totalBytes.length +
+        " | playtime: ".length +
+        timePlayed.length;
+    const { x } = terminal.getCenterForSize(visibleLength, 0);
+    let currentX = x;
+    terminal.draw(currentX, height - 2, "id: ", chalk.gray);
+    currentX += "id: ".length;
+    terminal.draw(currentX, height - 2, accountId, chalk.white);
+    currentX += accountId.length;
+    terminal.draw(currentX, height - 2, " | bytes baked: ", chalk.gray);
+    currentX += " | bytes baked: ".length;
+    terminal.draw(currentX, height - 2, totalBytes, chalk.white);
+    currentX += totalBytes.length;
+    terminal.draw(currentX, height - 2, " | playtime: ", chalk.gray);
+    currentX += " | playtime: ".length;
+    terminal.draw(currentX, height - 2, timePlayed, chalk.white);
 }
 
 export function ensureSettingsVisible(
@@ -530,7 +551,7 @@ export function ensureSettingsVisible(
     const allItems = getSettingsItems(appState);
     const maxPanelWidth = 70;
     const panelWidth = Math.min(maxPanelWidth, width - 5);
-    const panelHeight = height - 5;
+    const panelHeight = height - 6;
 
     const itemHeights = allItems.map((item, i) => {
         const h = getSettingsItemHeight(item, appState, panelWidth);

@@ -1,4 +1,4 @@
-import type { AppState, GameState } from "../state";
+import type { AppState } from "../state";
 import type { ITerminal } from "../../core/terminal";
 import { redactPlayerKey } from "../../utils/logger";
 import { wrapText } from "../../utils/text";
@@ -167,11 +167,7 @@ function getGapAfter(
     return 1;
 }
 
-export function drawSettings(
-    appState: AppState,
-    gameState: GameState,
-    terminal: ITerminal,
-) {
+export function drawSettings(appState: AppState, terminal: ITerminal) {
     const { width, height } = terminal.getSize();
 
     const maxPanelWidth = 70;
@@ -516,9 +512,10 @@ export function drawSettings(
         }
     }
 
-    const accountIdText = `account id: ${appState.ssh?.accountId || "none"}`;
-    const { x } = terminal.getCenterForSize(accountIdText.length, 0);
-    terminal.draw(x, height - 1, accountIdText, chalk.gray);
+    const id = appState.ssh?.accountId.toString() || "offline";
+    const { x } = terminal.getCenterForSize(("account id: " + id).length, 0);
+    terminal.draw(x, height - 2, "account id: ", chalk.gray);
+    terminal.draw(x + 12, height - 2, id, chalk.white);
 }
 
 export function ensureSettingsVisible(

@@ -18,6 +18,22 @@ const ASCII = [
     "       ⠸⠿⠿⠿⠿⠿⣿⣿⣿⣿⠿⠇       ",
 ];
 
+function getCookieTextX(
+    appState: AppState,
+    terminal: ITerminal,
+    textLength: number,
+): number {
+    if (appState.layout === "medium") {
+        const leftPanelWidth = 44 + 2;
+        const rightWidth = terminal.getSize().width - leftPanelWidth;
+        const cookieWidth = ASCII[0].length;
+        const cx = leftPanelWidth + Math.floor((rightWidth - cookieWidth) / 2);
+        return cx + Math.floor((cookieWidth - textLength) / 2);
+    } else {
+        return terminal.getCenterForSize(textLength, 0).x;
+    }
+}
+
 export function drawCookie(
     appState: AppState,
     gameState: GameState,
@@ -53,70 +69,46 @@ export function drawCookie(
     }
 
     let currentTextY = cy + cookieHeight + 2;
-    const maxTextWidth = Math.min(width - 4, 80);
 
     if (appState.screen === "main") {
         const bakeMessage = "Press [space] to bake!";
+        const bakeX = getCookieTextX(appState, terminal, bakeMessage.length);
+        terminal.draw(bakeX, currentTextY, bakeMessage, chalk.gray);
 
-        if (appState.layout === "medium") {
-            terminal.draw(
-                cx + Math.floor((cookieWidth - bakeMessage.length) / 2),
-                currentTextY,
-                bakeMessage,
-                chalk.gray,
-            );
-        } else {
-            let { x } = terminal.getCenterForSize(bakeMessage.length, 0);
-            terminal.draw(x, currentTextY, bakeMessage, chalk.gray);
-        }
-
+        currentTextY += 1;
         const canPrestige = gameState.cookies >= gameState.prestigeCost;
-        if (appState.ui.confirmPrestige) {
-            const confirmText = "Are you sure? [y]es / [n]o";
-            if (appState.layout === "medium") {
+
+        if (canPrestige) {
+            if (appState.ui.confirmPrestige) {
+                const confirmText = "Are you sure? [y]es / [n]o";
+                const confirmX = getCookieTextX(
+                    appState,
+                    terminal,
+                    confirmText.length,
+                );
                 terminal.draw(
-                    cx + Math.floor((cookieWidth - confirmText.length) / 2),
-                    currentTextY + 1,
+                    confirmX,
+                    currentTextY,
                     confirmText,
                     chalk.red.bold,
                 );
             } else {
-                let { x } = terminal.getCenterForSize(confirmText.length, 0);
-                terminal.draw(x, currentTextY + 1, confirmText, chalk.red.bold);
+                const actionText = `[P]restige now!`;
+                const actionX = getCookieTextX(
+                    appState,
+                    terminal,
+                    actionText.length,
+                );
+                terminal.draw(actionX, currentTextY, actionText, chalk.yellow);
             }
         } else {
-            if (canPrestige) {
-                const actionText = `[P]restige now!`;
-                if (appState.layout === "medium") {
-                    terminal.draw(
-                        cx + Math.floor((cookieWidth - actionText.length) / 2),
-                        currentTextY + 1,
-                        actionText,
-                        chalk.yellow,
-                    );
-                } else {
-                    let { x } = terminal.getCenterForSize(actionText.length, 0);
-                    terminal.draw(
-                        x,
-                        currentTextY + 1,
-                        actionText,
-                        chalk.yellow,
-                    );
-                }
-            } else {
-                const neededText = `Need ${formatBytes(gameState.prestigeCost)} to prestige.`;
-                if (appState.layout === "medium") {
-                    terminal.draw(
-                        cx + Math.floor((cookieWidth - neededText.length) / 2),
-                        currentTextY + 1,
-                        neededText,
-                        chalk.gray,
-                    );
-                } else {
-                    let { x } = terminal.getCenterForSize(neededText.length, 0);
-                    terminal.draw(x, currentTextY + 1, neededText, chalk.gray);
-                }
-            }
+            const neededText = `You need ${formatBytes(gameState.prestigeCost)} to prestige.`;
+            const neededX = getCookieTextX(
+                appState,
+                terminal,
+                neededText.length,
+            );
+            terminal.draw(neededX, currentTextY, neededText, chalk.gray);
         }
     }
 }

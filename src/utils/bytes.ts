@@ -30,7 +30,7 @@ export function formatBytes(
     }
 
     const value = numBytes / base ** i;
-    const roundedValue = Math.round(value * 10) / 10;
+    const roundedValue = Math.trunc(value * 10) / 10;
 
     let unit = units[i];
     if (!binary && unit !== "B") unit = unit.replace("i", "");

@@ -31,6 +31,7 @@ import {
     getOrCreateAccountId,
     linkKeyToAccount,
 } from "./game/account";
+import { getSettingsItems } from "./game/ui/settings";
 import { generateMessage } from "./utils/messages";
 
 let hostKey: string;
@@ -207,7 +208,7 @@ function handleSession(
                             accountKey,
                         )}) closed.`,
                     );
-                    await gameSession!.destroy();
+                    gameSession!.destroy();
                     unregisterTickerSession(gameSession!);
                     unregisterRendererSession(gameSession!);
                     activeGameSessions.delete(
@@ -233,7 +234,7 @@ function handleSession(
                 gameSession = newGameSession;
                 client.on("close", async () => {
                     logger.info(`Client connection for ${username} closed`);
-                    await gameSession!.destroy();
+                    gameSession!.destroy();
                     unregisterTickerSession(gameSession!);
                     unregisterRendererSession(gameSession!);
                     activeGameSessions.delete(
@@ -404,6 +405,23 @@ async function handleLinkingTokenExec(
         linkKeyToAccount(sharedDb, currentAccountKey, targetAccountId);
         sharedDb.run("DELETE FROM linking_tokens WHERE token = ?", [token]);
 
+        const session = activeGameSessions.get(targetAccountId);
+        if (session) {
+            const oldItems = getSettingsItems(session.appState);
+            const headerIndex = oldItems.findIndex(
+                (item) => item.type === "linkedKeysHeader",
+            );
+
+            session.appState.ui.settings.linkingToken = null;
+            session.appState.ui.settings.linkedKeys = getLinkedKeysForAccount(
+                sharedDb,
+                targetAccountId,
+            );
+            if (session.appState.ui.settings.selectedIndex > headerIndex) {
+                session.appState.ui.settings.selectedIndex += 1;
+            }
+        }
+
         stream.write(
             generateMessage(
                 "success",
@@ -449,26 +467,25 @@ export async function startSshServer(port: number, debug: boolean = false) {
         startRenderer();
     });
 
-    const gracefulShutdown = async () => {
+    const gracefulShutdown = () => {
         logger.info("Shutting down SSH server...");
         stopTicker();
         stopRenderer();
 
-        const sessionCleanupPromises: Promise<void>[] = [];
-        const clientsToClose: Set<SshClientConnection> = new Set();
         for (const session of activeGameSessions.values()) {
             logger.info(
                 `Destroying active session for player ${redactPlayerKey(
                     session.appState.ssh!.accountKey,
                 )}`,
             );
-            sessionCleanupPromises.push(session.destroy());
-            if (session.terminal instanceof SshTerminal) {
-                clientsToClose.add(session.terminal.getSshClient());
-            }
+            session.destroy();
+            (session.terminal as SshTerminal).endAndRestore(
+                generateMessage(
+                    "info",
+                    "Server is shutting down, disconnecting...",
+                ),
+            );
         }
-        await Promise.all(sessionCleanupPromises);
-        clientsToClose.forEach((client) => client.end());
 
         server.close(async (err) => {
             if (err) logger.error("Error closing SSH server:", err.message);

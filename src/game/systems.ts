@@ -67,6 +67,8 @@ export function recalcCps(gameState: GameState) {
             case "global_monopoly":
                 totalCpsFromWorkers +=
                     workerCpsContributions["conglomerate_owner"] || 0n;
+                totalCpsFromWorkers +=
+                    workerCpsContributions["angel_investor"] || 0n;
                 break;
             default:
                 break;
@@ -209,7 +211,7 @@ export function skipTime(gameState: GameState, minutes: number) {
 }
 
 export function calculatePrestigeCost(gameState: GameState) {
-    const initialPrestigeCost = 1024n ** 2n;
+    const initialPrestigeCost = 64n * 1024n ** 2n;
     const prestigeCostPerLevelMultiplier = 256n;
 
     let cost = initialPrestigeCost;

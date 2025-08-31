@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { AppState, GameState } from "./state";
+import type { AppState } from "./state";
 import { logger, redactPlayerKey } from "../utils/logger";
 import crypto from "crypto";
 

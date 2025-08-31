@@ -59,8 +59,8 @@ function drawUpgrade(
                 : " (not owned)"
             : ` (owned: ${count} / ${upgrade.maxOwned})`
         : ` (owned: ${count})`;
-
     terminal.draw(x + 2 + upgrade.name.length, y, ownedText, chalk.gray);
+
     terminal.draw(x + 2, y + 1, "cost: ", chalk.gray);
     terminal.draw(x + 8, y + 1, formattedCost, chalk.white);
 

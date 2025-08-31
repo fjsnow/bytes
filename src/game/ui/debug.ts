@@ -19,8 +19,8 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
         debugParts.push(sizeText);
     }
 
-    const screenLayoutText = `screen: ${appState.screen} | layout: ${appState.layout} | focus: ${appState.ui.focus}`;
-    if (width >= 100) {
+    const screenLayoutText = `${appState.screen}, ${appState.layout}, ${appState.ui.focus}`;
+    if (width >= 120) {
         debugParts.push(screenLayoutText);
     }
 
@@ -48,7 +48,7 @@ export function drawDebug(appState: AppState, terminal: ITerminal) {
     const { x } = terminal.getCenterForSize(paddedDebugText.length, 0);
     terminal.draw(
         x,
-        terminal.getSize().height - 1,
+        terminal.getSize().height - 2,
         paddedDebugText,
         chalk.bgRed.white.bold,
     );

@@ -11,9 +11,9 @@ import { drawUpgrades } from "./ui/upgrades";
 import { drawWorkers } from "./ui/workers";
 import { drawSettings } from "./ui/settings";
 import { recalcCps, calculatePrestigeCost } from "./systems";
-import { drawWatermark } from "./ui/watermark";
+import { drawFooter } from "./ui/footer";
 import { drawDebug } from "./ui/debug";
-import { logger, redactPlayerKey } from "../utils/logger";
+import { logger } from "../utils/logger";
 import { handleGameInput } from "./input";
 
 export class GameSession {
@@ -71,7 +71,7 @@ export class GameSession {
         drawBits(this.appState, this.terminal);
 
         this.drawNavBar();
-        drawWatermark(this.terminal);
+        drawFooter(this.gameState, this.terminal);
 
         if (this.appState.screen === "main") {
             if (this.appState.layout === "large") {
@@ -82,7 +82,7 @@ export class GameSession {
                 this.renderSmallMain();
             }
         } else if (this.appState.screen === "settings") {
-            drawSettings(this.appState, this.gameState, this.terminal);
+            drawSettings(this.appState, this.terminal);
         } else if (this.appState.screen === "workers") {
             drawWorkers(this.appState, this.gameState, this.terminal);
         } else if (this.appState.screen === "upgrades") {
@@ -178,7 +178,7 @@ export class GameSession {
         handleGameInput(this, key);
     }
 
-    public async destroy() {
+    public destroy() {
         this.saveSystem?.saveGame();
         if (this.appState.mode === "ssh") {
             logger.info(

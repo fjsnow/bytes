@@ -1,6 +1,6 @@
 import { calculateGeometricBigintCost } from "../../utils/math";
 
-const BASE_WORKER_COST = 16n;
+const BASE_WORKER_COST = 8n;
 const BASE_WORKER_CPS = 1n;
 
 const WORKER_COST_MULTIPLIER = 16n;
@@ -80,8 +80,8 @@ export const WORKER_DATA: Worker[] = [
         prerequisitePrestige: 0,
     },
     {
-        id: "engineering_manager",
-        name: "Engineering Manager",
+        id: "project_manager",
+        name: "Project Manager",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 4),
@@ -93,11 +93,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             4,
         ),
-        prerequisitePrestige: 1,
+        prerequisitePrestige: 0,
     },
     {
-        id: "director",
-        name: "Director of Engineering",
+        id: "engineering_manager",
+        name: "Engineering Manager",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 5),
@@ -109,11 +109,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             5,
         ),
-        prerequisitePrestige: 1,
+        prerequisitePrestige: 0,
     },
     {
-        id: "vp_engineering",
-        name: "VP of Engineering",
+        id: "principal_engineer",
+        name: "Principal Engineer",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 6),
@@ -125,11 +125,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             6,
         ),
-        prerequisitePrestige: 2,
+        prerequisitePrestige: 1,
     },
     {
-        id: "cto",
-        name: "Chief Technology Officer",
+        id: "director",
+        name: "Director of Engineering",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 7),
@@ -141,11 +141,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             7,
         ),
-        prerequisitePrestige: 2,
+        prerequisitePrestige: 1,
     },
     {
-        id: "ceo",
-        name: "Chief Executive Officer",
+        id: "vp_engineering",
+        name: "VP of Engineering",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 8),
@@ -157,11 +157,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             8,
         ),
-        prerequisitePrestige: 3,
+        prerequisitePrestige: 2,
     },
     {
-        id: "board_member",
-        name: "Board Member",
+        id: "cto",
+        name: "Chief Technology Officer",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(BASE_WORKER_COST, WORKER_COST_MULTIPLIER, 9),
@@ -173,11 +173,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             9,
         ),
-        prerequisitePrestige: 3,
+        prerequisitePrestige: 2,
     },
     {
-        id: "chairman",
-        name: "Chairman",
+        id: "ceo",
+        name: "Chief Executive Officer",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(
@@ -193,11 +193,11 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             10,
         ),
-        prerequisitePrestige: 4,
+        prerequisitePrestige: 3,
     },
     {
-        id: "conglomerate_owner",
-        name: "Conglomerate Owner",
+        id: "founder",
+        name: "Founder",
         cost: (owned) =>
             calculateGeometricBigintCost(
                 calculateTierValue(
@@ -213,7 +213,87 @@ export const WORKER_DATA: Worker[] = [
             WORKER_CPS_MULTIPLIER,
             11,
         ),
+        prerequisitePrestige: 3,
+    },
+    {
+        id: "board_member",
+        name: "Board Member",
+        cost: (owned) =>
+            calculateGeometricBigintCost(
+                calculateTierValue(
+                    BASE_WORKER_COST,
+                    WORKER_COST_MULTIPLIER,
+                    12,
+                ),
+                1.15,
+                owned,
+            ),
+        baseCookiesPerSecond: calculateTierValue(
+            BASE_WORKER_CPS,
+            WORKER_CPS_MULTIPLIER,
+            12,
+        ),
         prerequisitePrestige: 4,
+    },
+    {
+        id: "chairman",
+        name: "Chairman",
+        cost: (owned) =>
+            calculateGeometricBigintCost(
+                calculateTierValue(
+                    BASE_WORKER_COST,
+                    WORKER_COST_MULTIPLIER,
+                    13,
+                ),
+                1.15,
+                owned,
+            ),
+        baseCookiesPerSecond: calculateTierValue(
+            BASE_WORKER_CPS,
+            WORKER_CPS_MULTIPLIER,
+            13,
+        ),
+        prerequisitePrestige: 4,
+    },
+    {
+        id: "conglomerate_owner",
+        name: "Conglomerate Owner",
+        cost: (owned) =>
+            calculateGeometricBigintCost(
+                calculateTierValue(
+                    BASE_WORKER_COST,
+                    WORKER_COST_MULTIPLIER,
+                    14,
+                ),
+                1.15,
+                owned,
+            ),
+        baseCookiesPerSecond: calculateTierValue(
+            BASE_WORKER_CPS,
+            WORKER_CPS_MULTIPLIER,
+            14,
+        ),
+        prerequisitePrestige: 5,
+    },
+    {
+        id: "angel_investor",
+        name: "Angel Investor",
+        cost: (owned) =>
+            calculateGeometricBigintCost(
+                calculateTierValue(
+                    BASE_WORKER_COST,
+                    WORKER_COST_MULTIPLIER,
+                    15,
+                ),
+                1.15,
+                owned,
+            ),
+        baseCookiesPerSecond: calculateTierValue(
+            BASE_WORKER_CPS,
+            WORKER_CPS_MULTIPLIER,
+            15,
+        ),
+        prerequisitePrestige: 5,
     },
 ];
 

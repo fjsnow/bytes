@@ -161,7 +161,7 @@ export async function handleGameInput(session: GameSession, key: string) {
         } else if (appState.layout === "medium") {
             handleMediumMainScreenInput(appState, gameState, terminal, key);
         } else {
-            handleSmallMainScreenInput(appState, gameState, terminal, key);
+            handleSmallMainScreenInput(appState, key);
         }
     } else if (appState.screen === "settings") {
         await handleSettingsScreenInput(session, key);
@@ -217,8 +217,8 @@ function handleWorkersScreenInput(
     key: string,
 ) {
     if (appState.ui.focus === "workers") {
-        if (key === "j") moveWorkerSelection(appState, terminal, 1, gameState);
-        if (key === "k") moveWorkerSelection(appState, terminal, -1, gameState);
+        if (key === "j") moveWorkerSelection(appState, terminal, 1);
+        if (key === "k") moveWorkerSelection(appState, terminal, -1);
         if (key.toLowerCase() === "b") {
             const worker = WORKER_DATA[appState.ui.workers.selectedIndex];
             if (worker) buyWorker(worker.id, gameState);
@@ -285,7 +285,7 @@ async function handleSettingsScreenInput(session: GameSession, key: string) {
                         "All your data has been deleted.",
                     ),
                 );
-                await session.destroy();
+                session.destroy();
             } else {
                 appState.ui.settings.isDeletingAccount = false;
                 appState.ui.settings.confirmDeleteAccount = false;
@@ -337,7 +337,7 @@ async function handleSettingsScreenInput(session: GameSession, key: string) {
                             "Your active key has been unlinked and your session was closed.",
                         ),
                     );
-                    await session.destroy();
+                    session.destroy();
                 }
             }
         }
@@ -435,7 +435,7 @@ function handleLargeMainScreenInput(
         },
         j: () => {
             if (appState.ui.focus === "workers") {
-                moveWorkerSelection(appState, terminal, 1, gameState);
+                moveWorkerSelection(appState, terminal, 1);
             } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, 1, gameState);
             } else if (appState.ui.focus === "main") {
@@ -445,7 +445,7 @@ function handleLargeMainScreenInput(
         },
         k: () => {
             if (appState.ui.focus === "workers") {
-                moveWorkerSelection(appState, terminal, -1, gameState);
+                moveWorkerSelection(appState, terminal, -1);
             } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, -1, gameState);
             } else if (appState.ui.focus === "main") {
@@ -501,7 +501,7 @@ function handleMediumMainScreenInput(
         },
         j: () => {
             if (appState.ui.focus === "workers") {
-                moveWorkerSelection(appState, terminal, 1, gameState);
+                moveWorkerSelection(appState, terminal, 1);
             } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, 1, gameState);
             } else if (appState.ui.focus === "main") {
@@ -511,7 +511,7 @@ function handleMediumMainScreenInput(
         },
         k: () => {
             if (appState.ui.focus === "workers") {
-                moveWorkerSelection(appState, terminal, -1, gameState);
+                moveWorkerSelection(appState, terminal, -1);
             } else if (appState.ui.focus === "upgrades") {
                 moveUpgradeSelection(appState, terminal, -1, gameState);
             } else if (appState.ui.focus === "main") {
@@ -540,12 +540,7 @@ function handleMediumMainScreenInput(
     if (map[key]) map[key]();
 }
 
-function handleSmallMainScreenInput(
-    appState: AppState,
-    gameState: GameState,
-    terminal: ITerminal,
-    key: string,
-) {
+function handleSmallMainScreenInput(appState: AppState, key: string) {
     const map: Record<string, () => void> = {
         w: () => {
             appState.screen = "workers";

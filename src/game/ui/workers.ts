@@ -46,18 +46,15 @@ function drawWorker(
         const formattedCost = formatBytes(cost);
         const canAfford = gameState.cookies >= cost;
 
+        const ownedText = `(owned: ${count})`;
         terminal.draw(
             5,
             y,
             worker.name,
             canAfford ? chalk.yellow.bold : chalk.yellow,
         );
-        terminal.draw(
-            worker.name.length + 6,
-            y,
-            `(owned: ${count})`,
-            chalk.gray,
-        );
+        terminal.draw(worker.name.length + 6, y, ownedText, chalk.gray);
+
         terminal.draw(5, y + 1, "cost: ", chalk.gray);
         terminal.draw(11, y + 1, formattedCost, chalk.white);
         terminal.draw(formattedCost.length + 11, y + 1, ", bps: ", chalk.gray);
@@ -152,7 +149,6 @@ export function moveWorkerSelection(
     appState: AppState,
     terminal: ITerminal,
     delta: number,
-    gameState: GameState,
 ) {
     const { height } = terminal.getSize();
     const maxVisible = Math.floor((height - 5) / WORKER_ITEM_HEIGHT);

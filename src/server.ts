@@ -332,6 +332,11 @@ async function handleExecRequest(
         return null;
     }
 
+    if (label === "export") {
+        await handleExportExec(stream, client, accountKey);
+        return null;
+    }
+
     logger.info(`Client requested exec command: ${command}`);
     stream.write(
         `This server does not support direct command execution for this user.\r\n`,
@@ -440,6 +445,50 @@ async function handleLinkingTokenExec(
                 currentAccountKey,
             )} with token ${token}. Token invalid or expired.`,
         );
+    }
+
+    stream.end();
+    client.end();
+}
+
+async function handleExportExec(
+    stream: import("stream").Duplex,
+    client: SshClientConnection,
+    accountKey: string,
+) {
+    logger.info(
+        `Client requesting export for key ${redactPlayerKey(accountKey)}`,
+    );
+
+    try {
+        const { accountId } = getOrCreateAccountId(sharedDb, accountKey);
+
+        const accountDataRow = sharedDb
+            .query("SELECT progress, settings FROM accounts WHERE id = ?")
+            .get(accountId) as
+            | { progress: string; settings: string }
+            | undefined;
+
+        if (!accountDataRow) {
+            stream.write(
+                `No save data found for this account.\r\n`,
+            );
+            stream.end();
+            client.end();
+            return;
+        }
+
+        const saveData = {
+            progress: JSON.parse(accountDataRow.progress),
+            settings: JSON.parse(accountDataRow.settings),
+        };
+
+        stream.write(JSON.stringify(saveData, null, 2));
+        stream.write("\r\n");
+        logger.info(`Exported save data for account ${accountId}`);
+    } catch (e) {
+        logger.error(`Error exporting data for account key ${redactPlayerKey(accountKey)}:`, e);
+        stream.write(`Error exporting save data.\r\n`);
     }
 
     stream.end();

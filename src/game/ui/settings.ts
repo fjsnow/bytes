@@ -193,8 +193,8 @@ export function drawSettings(
         terminal.draw(panelStartX, panelY - 1, "[S]ettings", chalk.white.bold);
         terminal.draw(panelStartX + 11, panelY - 1, "j(↓) / k(↑)", chalk.gray);
     } else {
-        contentStartX = 7;
-        pointerX = 5;
+        contentStartX = 5;
+        pointerX = 3;
         scrollbarX = 1;
         terminal.draw(1, 2, "[S]ettings", chalk.white.bold);
         terminal.draw(12, 2, "j(↓) / k(↑)", chalk.gray);
